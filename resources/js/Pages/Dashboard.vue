@@ -1,11 +1,16 @@
 <script setup>
 import { Head, Link, router } from "@inertiajs/vue3";
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 
 const props = defineProps({
     products: Array,
     categories: Array,
     filters: Object,
+});
+
+// Otomatis refresh data produk ketika kembali ke Beranda/Dashboard
+onMounted(() => {
+    router.reload({ only: ["products"] });
 });
 
 const search = ref(props.filters?.search || "");
@@ -365,17 +370,29 @@ const handleSearch = () => {
                                 </span>
                             </div>
 
-                            <!-- Harga & Rating Footer -->
+                            <!-- Harga, Total Views & Rating Footer -->
                             <div class="mt-auto pt-2 sm:pt-3 border-t border-[#362415]/10 flex items-center justify-between gap-1">
                                 <span class="text-[#F25C05] font-black text-xs sm:text-base tracking-tight truncate">
                                     Rp {{ Number(product.price).toLocaleString("id-ID") }}
                                 </span>
 
-                                <div class="flex items-center gap-0.5 sm:gap-1 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-black text-[#362415] shrink-0">
-                                    <svg class="w-3 h-3 text-amber-500 fill-amber-400" viewBox="0 0 24 24">
-                                        <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
-                                    </svg>
-                                    <span>{{ product.avg_rating || "0.0" }}</span>
+                                <div class="flex items-center gap-1 shrink-0">
+                                    <!-- Badge Total Views (Baru) -->
+                                    <div class="flex items-center gap-0.5 bg-stone-100 border border-stone-300 px-1.5 py-0.5 rounded-lg text-[9px] sm:text-[10px] font-extrabold text-[#362415]" title="Total Dilihat">
+                                        <svg class="w-3 h-3 text-stone-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                        <span>{{ Number(product.views_count || 0).toLocaleString("id-ID") }}</span>
+                                    </div>
+
+                                    <!-- Badge Rating -->
+                                    <div class="flex items-center gap-0.5 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-lg text-[9px] sm:text-[10px] font-black text-[#362415]">
+                                        <svg class="w-3 h-3 text-amber-500 fill-amber-400" viewBox="0 0 24 24">
+                                            <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                                        </svg>
+                                        <span>{{ product.avg_rating || "0.0" }}</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>

@@ -9,7 +9,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('reviews', function (Blueprint $table) {
-            $table->foreignId('user_id')->after('product_id')->constrained()->cascadeOnDelete();
+            if (!Schema::hasColumn('reviews', 'user_id')) {
+                $table->foreignId('user_id')->nullable()->after('product_id')->constrained()->nullOnDelete();
+            }
         });
     }
 

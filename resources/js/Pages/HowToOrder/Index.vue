@@ -32,7 +32,7 @@ const faqs = [
     },
     {
         q: "Saya siswa SMKN 11 dan mau jualan juga, gimana caranya?",
-        a: "Keren banget! Kamu bisa daftar akun, lalu hubungi Admin sekolah untuk verifikasi tokomu agar bisa mulai memajang produk kreatifmu di SiswaMart.",
+        a: "Keren banget! Kamu bisa daftar akun, lalu hubungi Admin SiswaMart untuk verifikasi tokomu agar bisa mulai memajang produk kreatifmu di SiswaMart.",
     },
 ];
 </script>

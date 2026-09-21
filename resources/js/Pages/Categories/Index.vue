@@ -1,12 +1,17 @@
 <script setup>
 import { Head, Link, router } from "@inertiajs/vue3";
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 
 const props = defineProps({
     products: Array,
     categories: Array,
     priceStats: Object,
     filters: Object,
+});
+
+// Otomatis refresh data produk ketika kembali ke halaman Kategori
+onMounted(() => {
+    router.reload({ only: ["products"] });
 });
 
 const search = ref(props.filters.search || "");
@@ -17,18 +22,39 @@ const selectedSort = ref(props.filters.sort || "latest");
 const selectedStatus = ref(props.filters.status || "");
 const showMobileFilters = ref(false);
 const mobileMenuOpen = ref(false);
+const sortDropdownOpen = ref(false);
 
 const toggleMobileMenu = () => {
     mobileMenuOpen.value = !mobileMenuOpen.value;
 };
 
-// Preset Rentang Harga Pelajar
+// Opsi Urutan Katalog
+const sortOptions = [
+    { value: "latest", label: "Paling Baru Ditambahkan" },
+    { value: "views_desc", label: "Paling Populer (Banyak Dilihat)" },
+    { value: "price_asc", label: "Harga: Termurah" },
+    { value: "price_desc", label: "Harga: Termahal" },
+    { value: "rating", label: "Rating Tertinggi" },
+];
+
+const selectedSortLabel = computed(() => {
+    const found = sortOptions.find((opt) => opt.value === selectedSort.value);
+    return found ? found.label : "Urutkan Menu";
+});
+
+const selectSort = (value) => {
+    selectedSort.value = value;
+    sortDropdownOpen.value = false;
+    applyFilters();
+};
+
+// Preset Rentang Harga Pelajar (Bersih Tanpa Tanda > / <)
 const pricePresets = [
     { label: "Semua Harga", min: "", max: "", type: "all" },
-    { label: "< Rp 5.000", min: "", max: 5000, type: "hemat" },
-    { label: "Rp 5.000 - 10.000", min: 5000, max: 10000, type: "populer" },
-    { label: "Rp 10.000 - 20.000", min: 10000, max: 20000, type: "kenyang" },
-    { label: "> Rp 20.000", min: 20000, max: "", type: "sultan" },
+    { label: "Maksimal Rp 5.000", min: "", max: 5000, type: "hemat" },
+    { label: "Rp 5.000 - Rp 10.000", min: 5000, max: 10000, type: "populer" },
+    { label: "Rp 10.000 - Rp 20.000", min: 10000, max: 20000, type: "kenyang" },
+    { label: "Di Atas Rp 20.000", min: 20000, max: "", type: "sultan" },
 ];
 
 const activePreset = computed(() => {
@@ -92,7 +118,7 @@ const hasActiveFilters = computed(() => {
 
 const currentCategoryName = computed(() => {
     if (!selectedCategory.value) return "Semua Menu";
-    const found = props.categories.find(c => String(c.id) === String(selectedCategory.value));
+    const found = props.categories.find((c) => String(c.id) === String(selectedCategory.value));
     return found ? found.name : "Kategori";
 });
 </script>
@@ -117,47 +143,29 @@ const currentCategoryName = computed(() => {
         </div>
 
         <!-- HEADER STICKY RESPONSIVE DENGAN MOBILE DRAWER -->
-        <header
-            class="sticky top-0 z-50 px-3 sm:px-6 py-2.5 sm:py-3 transition-all duration-200"
-        >
+        <header class="sticky top-0 z-50 px-3 sm:px-6 py-2.5 sm:py-3 transition-all duration-200">
             <div
                 class="max-w-5xl mx-auto bg-[#F4F0E6]/95 sm:bg-[#F4F0E6]/90 backdrop-blur-md border-2 border-[#362415] rounded-2xl sm:rounded-full px-3.5 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-2 sm:gap-6 shadow-sm sm:shadow-[0_8px_20px_rgba(54,36,21,0.06)]"
             >
                 <!-- BRAND LOGO -->
-                <Link
-                    :href="route('catalog.index')"
-                    class="flex items-center gap-2 group shrink-0"
-                >
-                    <div
-                        class="text-lg sm:text-2xl font-black tracking-tighter text-[#362415] group-hover:text-[#F25C05] transition-colors"
-                    >
+                <Link :href="route('catalog.index')" class="flex items-center gap-2 group shrink-0">
+                    <div class="text-lg sm:text-2xl font-black tracking-tighter text-[#362415] group-hover:text-[#F25C05] transition-colors">
                         Siswa<span class="text-[#F25C05]">Mart</span>
                     </div>
                 </Link>
 
                 <!-- DESKTOP NAV MENU -->
                 <nav class="hidden md:flex items-center gap-6">
-                    <Link
-                        :href="route('catalog.index')"
-                        class="text-sm font-bold text-[#362415] hover:text-[#F25C05] transition-colors"
-                    >
+                    <Link :href="route('catalog.index')" class="text-sm font-bold text-[#362415] hover:text-[#F25C05] transition-colors">
                         Beranda
                     </Link>
-                    <span
-                        class="text-sm font-black text-[#F25C05] px-3 py-1 bg-[#F25C05]/10 rounded-full border border-[#F25C05]/20"
-                    >
+                    <span class="text-sm font-black text-[#F25C05] px-3 py-1 bg-[#F25C05]/10 rounded-full border border-[#F25C05]/20">
                         Kategori
                     </span>
-                    <Link
-                        :href="route('how-to-order')"
-                        class="text-sm font-bold text-[#362415] hover:text-[#F25C05] transition-colors"
-                    >
+                    <Link :href="route('how-to-order')" class="text-sm font-bold text-[#362415] hover:text-[#F25C05] transition-colors">
                         Cara Memesan
                     </Link>
-                    <Link
-                        :href="route('about')"
-                        class="text-sm font-bold text-[#362415] hover:text-[#F25C05] transition-colors"
-                    >
+                    <Link :href="route('about')" class="text-sm font-bold text-[#362415] hover:text-[#F25C05] transition-colors">
                         Tentang Kami
                     </Link>
                 </nav>
@@ -213,33 +221,18 @@ const currentCategoryName = computed(() => {
                 leave-from-class="transform translate-y-0 opacity-100"
                 leave-to-class="transform -translate-y-2 opacity-0"
             >
-                <div
-                    v-if="mobileMenuOpen"
-                    class="md:hidden mt-2 bg-[#FCFAF5] border-2 border-[#362415] rounded-2xl p-4 shadow-md space-y-2.5 max-w-5xl mx-auto"
-                >
+                <div v-if="mobileMenuOpen" class="md:hidden mt-2 bg-[#FCFAF5] border-2 border-[#362415] rounded-2xl p-4 shadow-md space-y-2.5 max-w-5xl mx-auto">
                     <div class="flex flex-col space-y-1 text-sm font-bold text-[#362415]">
-                        <Link
-                            :href="route('catalog.index')"
-                            @click="mobileMenuOpen = false"
-                            class="px-3 py-2 hover:bg-[#F9C22E]/30 rounded-xl transition-colors"
-                        >
+                        <Link :href="route('catalog.index')" @click="mobileMenuOpen = false" class="px-3 py-2 hover:bg-[#F9C22E]/30 rounded-xl transition-colors">
                             Beranda
                         </Link>
                         <span class="px-3 py-2 bg-[#F25C05]/15 text-[#F25C05] font-black rounded-xl">
-                            Kategori & Budget
+                            Kategori & Setting Harga
                         </span>
-                        <Link
-                            :href="route('how-to-order')"
-                            @click="mobileMenuOpen = false"
-                            class="px-3 py-2 hover:bg-[#F9C22E]/30 rounded-xl transition-colors"
-                        >
+                        <Link :href="route('how-to-order')" @click="mobileMenuOpen = false" class="px-3 py-2 hover:bg-[#F9C22E]/30 rounded-xl transition-colors">
                             Cara Memesan
                         </Link>
-                        <Link
-                            :href="route('about')"
-                            @click="mobileMenuOpen = false"
-                            class="px-3 py-2 hover:bg-[#F9C22E]/30 rounded-xl transition-colors"
-                        >
+                        <Link :href="route('about')" @click="mobileMenuOpen = false" class="px-3 py-2 hover:bg-[#F9C22E]/30 rounded-xl transition-colors">
                             Tentang Kami
                         </Link>
                     </div>
@@ -252,22 +245,20 @@ const currentCategoryName = computed(() => {
             <!-- HERO HEADER BANNER -->
             <section class="bg-[#FCFAF5] border-2 border-[#362415] rounded-2xl sm:rounded-[36px] p-5 sm:p-10 shadow-[3px_3px_0px_#362415] sm:shadow-[6px_6px_0px_#362415] relative overflow-hidden">
                 <div class="max-w-3xl space-y-3 sm:space-y-4">
-                    <div
-                        class="inline-flex items-center gap-1.5 sm:gap-2 bg-[#F9C22E] border-2 border-[#362415] text-[#362415] px-3 sm:px-3.5 py-1 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest rotate-[-1.5deg] shadow-sm"
-                    >
+                    <div class="inline-flex items-center gap-1.5 sm:gap-2 bg-[#F9C22E] border-2 border-[#362415] text-[#362415] px-3 sm:px-3.5 py-1 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest rotate-[-1.5deg] shadow-sm">
                         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                         </svg>
-                        <span>Eksplorasi Menu & Budget</span>
+                        <span>Eksplorasi Menu & Setting Harga</span>
                     </div>
 
                     <h1 class="text-2xl sm:text-5xl lg:text-6xl font-black text-[#362415] tracking-tight leading-tight">
-                        Pilih Kategori & <br class="hidden sm:inline"/>
-                        <span class="text-[#F25C05]">Setting Hargamu!</span>
+                        Pilih Kategori & <br class="hidden sm:inline" />
+                        <span class="text-[#F25C05]">Atur Sesuai Kantongmu!</span>
                     </h1>
 
                     <p class="text-[#634C3C] text-xs sm:text-sm md:text-base font-semibold leading-relaxed max-w-xl">
-                        Filter jajanan lezat dan karya siswa SMKN 11 Bandung berdasarkan kategori favorit dan rentang harga yang pas buat kantongmu.
+                        Filter jajanan lezat dan karya siswa SMKN 11 Bandung berdasarkan kategori favorit dan rentang harga yang pas buat kamu.
                     </p>
                 </div>
 
@@ -339,7 +330,7 @@ const currentCategoryName = computed(() => {
                         <svg class="w-4 h-4 text-[#F25C05]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                         </svg>
-                        <span>{{ showMobileFilters ? 'Sembunyikan Panel Filter' : 'Buka Setting Budget & Filter Harga' }}</span>
+                        <span>{{ showMobileFilters ? 'Sembunyikan Panel Filter' : 'Atur Pilihan Pas Kantong & Filter' }}</span>
                     </div>
                     <span class="w-6 h-6 rounded-full bg-[#F9C22E] border border-[#362415] flex items-center justify-center text-[10px]">
                         {{ showMobileFilters ? '▲' : '▼' }}
@@ -350,7 +341,7 @@ const currentCategoryName = computed(() => {
             <!-- 2-COLUMN MAIN CONTENT: STICKY FILTER SIDEBAR + PRODUCT FEED -->
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">
                 
-                <!-- LEFT COLUMN: FILTER SIDEBAR (HIDDEN DI MOBILE KECUALI DI-TOGGLE) -->
+                <!-- LEFT COLUMN: FILTER SIDEBAR -->
                 <aside :class="showMobileFilters ? 'block' : 'hidden lg:block'" class="lg:col-span-4 space-y-4 sm:space-y-6">
                     <div class="bg-[#FCFAF5] border-2 border-[#362415] rounded-2xl sm:rounded-[32px] p-4 sm:p-6 shadow-[3px_3px_0px_#362415] sm:shadow-[6px_6px_0px_#362415] space-y-4 sm:space-y-5">
                         <!-- SIDEBAR HEADER -->
@@ -359,7 +350,7 @@ const currentCategoryName = computed(() => {
                                 <svg class="w-4 h-4 sm:w-5 sm:h-5 text-[#F25C05]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                                 </svg>
-                                <span>Filter & Budget</span>
+                                <span>Filter & Pilihan Harga</span>
                             </div>
 
                             <button
@@ -371,10 +362,10 @@ const currentCategoryName = computed(() => {
                             </button>
                         </div>
 
-                        <!-- 1. PRESET BUDGET PELAJAR -->
+                        <!-- 1. PILIHAN PAS KANTONG (BAHASA INDONESIA & TANPA TANDA > / <) -->
                         <div class="space-y-2.5">
                             <label class="text-[11px] sm:text-xs font-black uppercase tracking-wider text-[#362415] flex items-center gap-1.5">
-                                <span>Preset Budget</span>
+                                <span>Pilihan Pas Kantong</span>
                             </label>
 
                             <div class="grid grid-cols-1 gap-1.5">
@@ -387,10 +378,10 @@ const currentCategoryName = computed(() => {
                                             ? 'bg-[#F25C05] text-white border-2 border-[#362415] shadow-sm font-black'
                                             : 'bg-white text-[#362415] border border-[#362415]/40 hover:border-[#362415] hover:bg-[#FFF9E6] font-bold'
                                     "
-                                    class="w-full px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all"
+                                    class="w-full px-3.5 py-2.5 rounded-xl text-xs flex items-center justify-between transition-all"
                                 >
                                     <span>{{ preset.label }}</span>
-                                    <svg v-if="activePreset === idx" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                    <svg v-if="activePreset === idx" class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
                                     </svg>
                                 </button>
@@ -400,7 +391,7 @@ const currentCategoryName = computed(() => {
                         <!-- 2. CUSTOM RENTANG HARGA -->
                         <div class="space-y-2.5 pt-3 border-t-2 border-[#362415]/10">
                             <label class="text-[11px] sm:text-xs font-black uppercase tracking-wider text-[#362415] flex items-center justify-between">
-                                <span>Input Harga</span>
+                                <span>Atur Harga Sendiri</span>
                                 <span class="text-[9px] sm:text-[10px] font-bold text-[#634C3C]">Maks. Rp {{ Number(priceStats?.max || 50000).toLocaleString('id-ID') }}</span>
                             </label>
 
@@ -469,13 +460,13 @@ const currentCategoryName = computed(() => {
                     </div>
                 </aside>
 
-                <!-- RIGHT COLUMN: SEARCH, SORT & PRODUCT GRID FEED -->
+                <!-- RIGHT COLUMN: SEARCH, CUSTOM SORT DROPDOWN & PRODUCT FEED -->
                 <section class="lg:col-span-8 space-y-4 sm:space-y-6">
-                    <!-- SEARCH & SORT CONTROL BAR -->
+                    <!-- SEARCH & CUSTOM SORT BAR -->
                     <div class="bg-[#FCFAF5] border-2 border-[#362415] rounded-2xl sm:rounded-[28px] p-3 sm:p-4 shadow-sm space-y-2.5">
                         <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-3">
                             <!-- Search Input -->
-                            <div class="sm:col-span-7">
+                            <div class="sm:col-span-6">
                                 <div class="relative">
                                     <input
                                         v-model="search"
@@ -496,18 +487,65 @@ const currentCategoryName = computed(() => {
                                 </div>
                             </div>
 
-                            <!-- Sort Select -->
-                            <div class="sm:col-span-5">
-                                <select
-                                    v-model="selectedSort"
-                                    @change="applyFilters"
-                                    class="w-full py-2 pl-3 pr-8 bg-white border-2 border-[#362415] rounded-xl text-xs font-bold text-[#362415] focus:ring-0 focus:border-[#F25C05]"
+                            <!-- CUSTOM SORT DROPDOWN (Ganti bawaan <select> yang kaku) -->
+                            <div class="sm:col-span-6 relative">
+                                <button
+                                    @click="sortDropdownOpen = !sortDropdownOpen"
+                                    type="button"
+                                    class="w-full py-2 px-3 bg-white border-2 border-[#362415] rounded-xl text-xs font-bold text-[#362415] flex items-center justify-between gap-2 shadow-xs hover:border-[#F25C05] transition-colors"
                                 >
-                                    <option value="latest">Paling Baru</option>
-                                    <option value="price_asc">Harga: Termurah</option>
-                                    <option value="price_desc">Harga: Termahal</option>
-                                    <option value="rating">Rating Tertinggi</option>
-                                </select>
+                                    <div class="flex items-center gap-1.5 truncate">
+                                        <svg class="w-3.5 h-3.5 text-[#F25C05] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+                                        </svg>
+                                        <span class="truncate">{{ selectedSortLabel }}</span>
+                                    </div>
+                                    <svg
+                                        class="w-4 h-4 text-[#362415] transition-transform duration-200 shrink-0"
+                                        :class="{ 'rotate-180': sortDropdownOpen }"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2.5"
+                                    >
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </button>
+
+                                <!-- Backdrop Click Away -->
+                                <div v-if="sortDropdownOpen" @click="sortDropdownOpen = false" class="fixed inset-0 z-20"></div>
+
+                                <!-- Custom Dropdown Menu -->
+                                <transition
+                                    enter-active-class="transition duration-100 ease-out"
+                                    enter-from-class="transform scale-95 opacity-0"
+                                    enter-to-class="transform scale-100 opacity-100"
+                                    leave-active-class="transition duration-75 ease-in"
+                                    leave-from-class="transform scale-100 opacity-100"
+                                    leave-to-class="transform scale-95 opacity-0"
+                                >
+                                    <div
+                                        v-if="sortDropdownOpen"
+                                        class="absolute right-0 left-0 mt-1.5 bg-white border-2 border-[#362415] rounded-xl shadow-[4px_4px_0px_#362415] py-1.5 z-30 space-y-0.5 overflow-hidden"
+                                    >
+                                        <button
+                                            v-for="option in sortOptions"
+                                            :key="option.value"
+                                            @click="selectSort(option.value)"
+                                            :class="
+                                                selectedSort === option.value
+                                                    ? 'bg-[#F25C05]/15 text-[#F25C05] font-black'
+                                                    : 'text-[#362415] hover:bg-[#FFF9E6] font-bold'
+                                            "
+                                            class="w-full text-left px-3.5 py-2 text-xs flex items-center justify-between transition-colors"
+                                        >
+                                            <span>{{ option.label }}</span>
+                                            <svg v-if="selectedSort === option.value" class="w-3.5 h-3.5 text-[#F25C05]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </transition>
                             </div>
                         </div>
 
@@ -639,17 +677,30 @@ const currentCategoryName = computed(() => {
                                     </span>
                                 </div>
 
-                                <!-- Harga & Rating Footer -->
+                                <!-- Harga, Total Views & Rating Footer -->
                                 <div class="mt-auto pt-2 sm:pt-3 border-t border-[#362415]/10 flex items-center justify-between gap-1">
+                                    <!-- Harga Produk -->
                                     <span class="text-[#F25C05] font-black text-xs sm:text-base tracking-tight truncate">
                                         Rp {{ Number(product.price).toLocaleString("id-ID") }}
                                     </span>
 
-                                    <div class="flex items-center gap-0.5 sm:gap-1 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-black text-[#362415] shrink-0">
-                                        <svg class="w-3 h-3 text-amber-500 fill-amber-400" viewBox="0 0 24 24">
-                                            <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
-                                        </svg>
-                                        <span>{{ product.avg_rating || "0.0" }}</span>
+                                    <div class="flex items-center gap-1 shrink-0">
+                                        <!-- Badge Total Views -->
+                                        <div class="flex items-center gap-0.5 bg-stone-100 border border-stone-300 px-1.5 py-0.5 rounded-lg text-[9px] sm:text-[10px] font-extrabold text-[#362415]" title="Total Dilihat">
+                                            <svg class="w-3 h-3 text-stone-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                            </svg>
+                                            <span>{{ Number(product.views_count || 0).toLocaleString("id-ID") }}</span>
+                                        </div>
+
+                                        <!-- Badge Rating -->
+                                        <div class="flex items-center gap-0.5 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-lg text-[9px] sm:text-[10px] font-black text-[#362415]">
+                                            <svg class="w-3 h-3 text-amber-500 fill-amber-400" viewBox="0 0 24 24">
+                                                <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                                            </svg>
+                                            <span>{{ product.avg_rating || "0.0" }}</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -670,7 +721,7 @@ const currentCategoryName = computed(() => {
                             Menu Belum Ditemukan
                         </h3>
                         <p class="text-[#634C3C] font-semibold text-xs sm:text-sm max-w-sm mx-auto">
-                            Coba sesuaikan lagi rentang budget hargamu atau pilih kategori lainnya ya.
+                            Coba sesuaikan lagi pilihan pas kantongmu atau pilih kategori lainnya ya.
                         </p>
                         <button
                             @click="resetAllFilters"

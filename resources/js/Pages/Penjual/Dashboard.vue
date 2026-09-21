@@ -161,7 +161,7 @@ const showNewPassword = ref(false);
             </div>
 
             <!-- Grid Ringkasan Statistik (2 KOLOM DI MOBILE) -->
-            <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-6">
+            <div class="stat-grid-mobile grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-6">
                 
                 <div class="bg-white border-3 sm:border-4 border-gray-900 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-sm sm:shadow-[6px_6px_0px_0px_rgba(17,24,39,1)] flex flex-col justify-between space-y-3 sm:space-y-4 relative overflow-hidden">
                     <div class="absolute top-0 left-0 right-0 h-2 bg-orange-500 border-b-2 border-gray-900"></div>
@@ -591,6 +591,111 @@ const showNewPassword = ref(false);
 
             </div>
         </div>
-
     </div>
 </template>
+
+<style scoped>
+/* =========================================================
+   MOBILE RESPONSIVE OVERRIDE — PENJUAL DASHBOARD
+   ========================================================= */
+
+@media (max-width: 640px) {
+    /* 1. KUNCI SCREEN AGAR TIDAK BISA DI-SCROLL KE KANAN (OFFSIDE FIX) */
+    :global(html), :global(body) {
+        overflow-x: hidden !important;
+        width: 100vw !important;
+    }
+
+    .min-h-screen {
+        overflow-x: hidden !important;
+        width: 100% !important;
+    }
+
+    /* 2. HEADER NAVBAR FIX */
+    nav {
+        padding: 0.5rem 0.75rem !important;
+    }
+    nav .max-w-7xl {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        width: 100% !important;
+    }
+    /* Logo SiswaMart lebih ringkas */
+    nav a.text-xl, nav a.text-2xl {
+        font-size: 1.1rem !important;
+    }
+    /* Sembunyikan badge "LAPAK" kecil di HP agar hemat tempat */
+    nav span.bg-orange-100 {
+        display: none !important;
+    }
+    /* Perkecil tombol Edit Profil & Keluar */
+    nav button {
+        padding: 0.35rem 0.55rem !important;
+        font-size: 0.65rem !important;
+        border-radius: 0.5rem !important;
+    }
+
+    /* 3. CARD CONTAINER FIT SCREEN */
+    main.max-w-7xl {
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    /* 4. PENYESUAIAN CARD STATISTIK 2-KOLOM */
+    .grid.grid-cols-2 {
+        gap: 0.5rem !important;
+    }
+    .grid.grid-cols-2 > div {
+        padding: 0.65rem 0.55rem !important;
+        border-radius: 1rem !important;
+        border-width: 2px !important;
+        box-shadow: 3px 3px 0px 0px #111827 !important;
+    }
+
+    /* Icon Bulat di Atas Card */
+    .w-10.h-10 {
+        width: 1.6rem !important;
+        height: 1.6rem !important;
+        border-radius: 0.5rem !important;
+    }
+    .w-10.h-10 svg {
+        width: 0.85rem !important;
+        height: 0.85rem !important;
+    }
+
+    /* Ukuran Teks Angka & Judul Card */
+    .text-3xl {
+        font-size: 1.25rem !important;
+        line-height: 1.4rem !important;
+    }
+    h3.text-xs {
+        font-size: 0.65rem !important;
+    }
+
+    /* 5. KHUSUS CARD MENU PINTAS (RAPIKAN TOMBOL) */
+    .space-y-2 {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0.35rem !important;
+    }
+    .space-y-2 a {
+        padding: 0.35rem 0.25rem !important;
+        font-size: 0.58rem !important;
+        line-height: 1 !important;
+        border-radius: 0.5rem !important;
+        box-shadow: 1.5px 1.5px 0px 0px #111827 !important;
+        white-space: nowrap !important;
+        letter-spacing: normal !important;
+    }
+
+    /* 6. ETALASE & ULASAN CARD */
+    .grid.grid-cols-1.lg\:grid-cols-2 > div {
+        padding: 0.85rem !important;
+        border-radius: 1.25rem !important;
+        box-shadow: 4px 4px 0px 0px #111827 !important;
+    }
+}
+</style>

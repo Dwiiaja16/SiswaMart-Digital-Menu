@@ -114,7 +114,7 @@ const copyLink = async () => {
         <header class="site-nav sticky top-0 z-50">
             <div class="nav-inner max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                    <Link :href="route('catalog.index')" class="brand flex items-center">
+                    <Link :href="route('catalog.index')" :preserve-state="false" class="brand flex items-center">
                         <span>Siswa</span><b>Mart</b>
                     </Link>
                 </div>
@@ -179,11 +179,17 @@ const copyLink = async () => {
                         <span class="product-label">KATALOG ENTREPRENEUR</span>
                         <div class="rating-badge-top">
                             <svg viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
-                            <span>4.9 / 5.0</span>
+                            <span>{{ product.avg_rating || "0.0" }} / 5.0</span>
                         </div>
                     </div>
 
                     <h1 class="product-title">{{ product.name }}</h1>
+
+                    <!-- Indikator Total Views (Dilihat) -->
+                    <div class="views-badge">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        <span>Dilihat <strong>{{ Number(product.views_count || 0).toLocaleString("id-ID") }}</strong> kali oleh pembeli</span>
+                    </div>
 
                     <div class="price-box">
                         <div>
@@ -309,15 +315,15 @@ const copyLink = async () => {
                     </div>
 
                     <div v-else class="review-form-card reveal">
-                    <div class="form-head">
-                        <div class="form-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                        <div class="form-head">
+                            <div class="form-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                            </div>
+                            <div class="form-title-group">
+                                <p>PENDAPATMU</p>
+                                <h2>Tulis Ulasan</h2>
+                            </div>
                         </div>
-                        <div class="form-title-group">
-                            <p>PENDAPATMU</p>
-                            <h2>Tulis Ulasan</h2>
-                        </div>
-                    </div>
 
                         <form @submit.prevent="submitReview" class="review-form">
                             <div class="field">
@@ -357,10 +363,6 @@ const copyLink = async () => {
 </template>
 
 <style scoped>
-/* =========================================================
-   SISWAMART — DETAIL PRODUCT PAGE STYLING
-   ========================================================= */
-
 /* Main Page Setup */
 .detail-page {
     position: relative;
@@ -391,15 +393,15 @@ const copyLink = async () => {
 .brand { color: #111827; text-decoration: none; font-size: 1.5rem; font-weight: 1000; letter-spacing: -0.05em; }
 .brand b { color: #ea580c; }
 
-.back-button, .share-btn, .dash-btn, .login-btn {
+.share-btn, .dash-btn, .login-btn {
     display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.45rem 0.9rem;
     border: 2px solid #111827; border-radius: 0.8rem; background: #fff; color: #111827;
     font-size: 0.72rem; font-weight: 900; text-transform: uppercase; text-decoration: none;
     box-shadow: 3px 3px 0 #111827; transition: all 0.15s ease; cursor: pointer;
 }
-.back-button:hover, .share-btn:hover { transform: translate(-2px, -2px); box-shadow: 5px 5px 0 #111827; }
+.share-btn:hover, .dash-btn:hover, .login-btn:hover { transform: translate(-2px, -2px); box-shadow: 5px 5px 0 #111827; }
 .dash-btn { background: #fbbf24; }
-.login-btn { background: #f97316; color: #fff; }
+.login-btn { background: #f97316; color: #111827; }
 
 /* Hero Card Layout */
 .hero-card {
@@ -454,13 +456,34 @@ const copyLink = async () => {
 
 .product-title { margin: 0; font-size: clamp(1.8rem, 3.2vw, 2.6rem); line-height: 1; font-weight: 1000; text-transform: uppercase; }
 
+/* Indikator Views Badge (Style Baru Neobrutalism) */
+.views-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: #fff;
+    border: 2px solid #111827;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: #362415;
+    box-shadow: 2.5px 2.5px 0 #111827;
+    width: fit-content;
+}
+.views-badge svg {
+    width: 16px;
+    height: 16px;
+    color: #ea580c;
+    flex-shrink: 0;
+}
+
 .price-box {
     display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem;
     padding: 12px 0; border-top: 3px solid #111827; border-bottom: 3px solid #111827;
 }
 .price-label { margin: 0 0 2px; font-size: 0.58rem; font-weight: 900; color: #78716c; }
 .price { margin: 0; font-size: clamp(1.6rem, 2.8vw, 2.2rem); font-weight: 1000; color: #ea580c; }
-.unit-badge { padding: 0.4rem 0.6rem; background: #111827; color: #fff; border-radius: 6px; font-size: 0.55rem; font-weight: 900; }
 
 .seller-card {
     display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: #fafaf9;
@@ -529,9 +552,7 @@ const copyLink = async () => {
 .empty-reviews strong { display: block; margin-top: 4px; font-size: 0.75rem; text-transform: uppercase; color: #111827; }
 .empty-reviews span { font-size: 0.6rem; }
 
-/* =========================================================
-   FORM ULASAN SIDE PANEL (FIX NUMPUK / DEMPET)
-   ========================================================= */
+/* Form Ulasan Side Panel */
 .content-side { position: sticky; top: 80px; }
 
 .form-head {
@@ -622,50 +643,37 @@ const copyLink = async () => {
     .content-side { position: static; }
 }
 
-/* Styling Tombol Navbar */
-.back-button, .share-btn, .dash-btn, .login-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.45rem 0.9rem;
-    border: 2px solid #111827;
-    border-radius: 0.8rem;
-    background: #fff;
-    color: #111827;
-    font-size: 0.72rem;
-    font-weight: 900;
-    text-transform: uppercase;
-    text-decoration: none;
-    box-shadow: 3px 3px 0 #111827;
-    transition: all 0.15s ease;
-    cursor: pointer;
-}
-
-/* Animasi Hover (Naik ke atas-kiri & bayangan meluas) */
-.back-button:hover, 
-.share-btn:hover, 
-.dash-btn:hover, 
-.login-btn:hover { 
-    transform: translate(-2px, -2px); 
-    box-shadow: 5px 5px 0 #111827; 
-}
-
-/* Animasi Click/Active (Mentok ke bawah-kanan) */
-.back-button:active, 
-.share-btn:active, 
-.dash-btn:active, 
-.login-btn:active { 
-    transform: translate(1px, 1px); 
-    box-shadow: 2px 2px 0 #111827; 
-}
-
-/* Warna Spesifik Tiap Tombol */
-.dash-btn { 
-    background: #fbbf24; 
-}
-
-.login-btn { 
-    background: #f97316; 
-    color: #111827; /* Atau #fff kalau mau teks putih */
+@media (max-width: 768px) {
+    .detail-page { padding-bottom: 2rem; }
+    .brand { font-size: 1.25rem; }
+    .share-btn, .dash-btn, .login-btn {
+        padding: 0.35rem 0.65rem;
+        font-size: 0.65rem;
+        border-radius: 0.6rem;
+        box-shadow: 2px 2px 0 #111827;
+    }
+    .hero-image-panel { padding: 14px; }
+    .image-topbar { flex-wrap: wrap; gap: 8px; }
+    .category-list { display: flex; flex-wrap: wrap; gap: 4px; }
+    .main-image-wrap { height: 260px; border-radius: 14px; }
+    .image-sticker { font-size: 0.52rem; padding: 0.35rem 0.5rem; left: 8px; bottom: 8px; }
+    .hero-info { padding: 18px 14px; gap: 14px; }
+    .product-title { font-size: 1.5rem; line-height: 1.1; }
+    .price { font-size: 1.6rem; }
+    .price-box { padding: 10px 0; }
+    .seller-card { padding: 10px 12px; }
+    .seller-icon { width: 36px; height: 36px; }
+    .seller-icon svg { width: 18px; height: 18px; }
+    .wa-button, .owner-lock-btn { padding: 11px; font-size: 0.68rem; border-radius: 12px; }
+    .content-grid { margin-top: 16px; gap: 16px; }
+    .content-card, .review-form-card, .notice-card { padding: 16px; border-radius: 16px; box-shadow: 4px 4px 0 #111827; }
+    .heading-icon { width: 34px; height: 34px; }
+    .heading-icon svg { width: 18px; height: 18px; }
+    .section-heading h2 { font-size: 0.95rem; }
+    .form-head { margin-bottom: 12px !important; padding-bottom: 10px !important; }
+    .form-icon { width: 36px !important; height: 36px !important; min-width: 36px !important; }
+    .form-icon svg { width: 18px !important; height: 18px !important; }
+    .form-title-group h2 { font-size: 1rem !important; }
+    .field input, .field textarea { font-size: 0.8rem; padding: 7px 9px; }
 }
 </style>

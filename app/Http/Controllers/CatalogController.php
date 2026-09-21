@@ -84,6 +84,9 @@ class CatalogController extends Controller
             $query->orderBy('price', 'asc');
         } elseif ($sort === 'price_desc') {
             $query->orderBy('price', 'desc');
+        } elseif ($sort === 'views_desc') {
+            // Urutkan berdasarkan terbanyak dilihat / terpopuler
+            $query->orderBy('views_count', 'desc');
         } else {
             $query->latest();
         }
@@ -123,7 +126,10 @@ class CatalogController extends Controller
 
     private function getBaseProductQuery()
     {
-        return Product::whereHas('shop.user', function ($q) {
+        return Product::whereHas('shop', function ($q) {
+            $q->where('status', 'active');
+        })
+        ->whereHas('shop.user', function ($q) {
             $q->where('is_suspended', false);
         })
         ->with(['shop.user', 'categories', 'reviews' => function ($q) {
@@ -165,6 +171,7 @@ class CatalogController extends Controller
                 'description'  => $product->description,
                 'price'        => $product->price,
                 'stock_status' => $product->stock_status,
+                'views_count'  => $product->views_count ?? 0,
                 'image'        => $imageUrl,
                 'categories'   => $product->categories,
 
@@ -196,7 +203,10 @@ class CatalogController extends Controller
             abort(404, 'Produk tidak ditemukan atau toko sedang dinonaktifkan.');
         }
 
-        // 2. Load relasi lapak, user penjual, categories (plural), dan ulasan
+        // 2. Tambah jumlah tayangan (view count) setiap ada yang melihat detail
+        $product->increment('views_count');
+
+        // 3. Load relasi lapak, user penjual, categories (plural), dan ulasan
         $product->load([
             'shop.user', 
             'categories', 
@@ -205,28 +215,29 @@ class CatalogController extends Controller
             }
         ]);
 
-        // 3. Format nomor WhatsApp penjual
+        // 4. Format nomor WhatsApp penjual
         $rawPhone = $product->shop->user->whatsapp_number ?? '';
         $phone = $product->shop->user->whatsapp_number ?? '';
         if (str_starts_with($phone, '0')) {
             $phone = '62' . substr($phone, 1);
         }
 
-        // 4. Draf pesan WA
+        // 5. Draf pesan WA
         $message = "Halo {$product->shop->name}, saya mau pesan *{$product->name}* seharga Rp " . number_format($product->price, 0, ',', '.') . " melalui SiswaMart. Apakah masih ada?";
         $waUrl = "https://wa.me/{$phone}?text=" . urlencode($message);
 
-        // 5. Ulasan & Rating
+        // 6. Ulasan & Rating
         $approvedReviews = $product->reviews;
         $avgRating = $approvedReviews->avg('rating') ? round($approvedReviews->avg('rating'), 1) : null;
 
-        // 6. Susun Array Data Produk
+        // 7. Susun Array Data Produk
         $productData = [
             'id'           => $product->id,
             'name'         => $product->name,
             'description'  => $product->description,
             'price'        => $product->price,
             'stock_status' => $product->stock_status,
+            'views_count'  => $product->views_count,
             'image'        => $product->image, 
             'categories'   => $product->categories,
             

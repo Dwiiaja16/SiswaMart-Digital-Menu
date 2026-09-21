@@ -119,10 +119,11 @@ const props = defineProps({
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-wrap gap-3 sm:gap-4 pt-1">
+                    <div class="grid grid-cols-2 lg:flex lg:flex-wrap gap-2.5 sm:gap-4 pt-1">
+                        <!-- Kelola Penjual -->
                         <Link
-                            :href="route('sellers.index')"
-                            class="w-full lg:w-auto px-4 sm:px-5 py-3 bg-orange-500 hover:bg-orange-400 border-2 border-gray-900 text-gray-900 font-black text-xs uppercase tracking-widest rounded-xl shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] active:scale-95 transition flex items-center justify-center gap-2"
+                            :href="route('admin.sellers.index')"
+                            class="px-3 sm:px-5 py-2.5 sm:py-3 bg-orange-500 hover:bg-orange-400 border-2 border-gray-900 text-gray-900 font-black text-[10px] sm:text-xs uppercase tracking-wider rounded-xl shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] active:scale-95 transition flex items-center justify-center gap-1.5"
                         >
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
@@ -130,9 +131,10 @@ const props = defineProps({
                             Kelola Penjual
                         </Link>
 
+                        <!-- Kelola Kategori -->
                         <Link
-                            :href="route('categories.index')"
-                            class="w-full lg:w-auto px-4 sm:px-5 py-3 bg-amber-400 hover:bg-amber-300 border-2 border-gray-900 text-gray-900 font-black text-xs uppercase tracking-widest rounded-xl shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] active:scale-95 transition flex items-center justify-center gap-2"
+                            :href="route('admin.categories.index')"
+                            class="px-3 sm:px-5 py-2.5 sm:py-3 bg-amber-400 hover:bg-amber-300 border-2 border-gray-900 text-gray-900 font-black text-[10px] sm:text-xs uppercase tracking-wider rounded-xl shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] active:scale-95 transition flex items-center justify-center gap-1.5"
                         >
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
@@ -140,9 +142,10 @@ const props = defineProps({
                             Kelola Kategori
                         </Link>
 
+                        <!-- Moderasi Produk -->
                         <Link
                             :href="route('admin.products.index')"
-                            class="w-full lg:w-auto px-4 sm:px-5 py-3 bg-sky-400 hover:bg-sky-300 border-2 border-gray-900 text-gray-900 font-black text-xs uppercase tracking-wider rounded-xl shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] active:scale-95 transition flex items-center justify-center gap-2"
+                            class="px-3 sm:px-5 py-2.5 sm:py-3 bg-sky-400 hover:bg-sky-300 border-2 border-gray-900 text-gray-900 font-black text-[10px] sm:text-xs uppercase tracking-wider rounded-xl shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] active:scale-95 transition flex items-center justify-center gap-1.5"
                         >
                             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
@@ -152,15 +155,27 @@ const props = defineProps({
                             Moderasi Produk
                         </Link>
 
+                        <!-- Katalog Publik -->
                         <Link
                             :href="route('catalog.index')"
                             target="_blank"
-                            class="w-full lg:w-auto px-4 sm:px-5 py-3 bg-stone-100 hover:bg-stone-200 border-2 border-gray-900 text-gray-900 font-black text-xs uppercase tracking-widest rounded-xl shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] active:scale-95 transition flex items-center justify-center gap-2"
+                            class="px-3 sm:px-5 py-2.5 sm:py-3 bg-stone-100 hover:bg-stone-200 border-2 border-gray-900 text-gray-900 font-black text-[10px] sm:text-xs uppercase tracking-wider rounded-xl shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] active:scale-95 transition flex items-center justify-center gap-1.5"
                         >
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                             </svg>
                             Katalog Publik
+                        </Link>
+
+                        <!-- Rekap Lapak -->
+                        <Link
+                            :href="route('admin.recap')"
+                            class="col-span-2 sm:col-span-1 px-3 sm:px-5 py-2.5 sm:py-3 bg-yellow-300 hover:bg-yellow-200 border-2 border-gray-900 text-gray-900 font-black text-[10px] sm:text-xs uppercase tracking-wider rounded-xl shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] active:scale-95 transition flex items-center justify-center gap-1.5"
+                        >
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                            Rekap Lapak
                         </Link>
                     </div>
                 </div>
@@ -185,7 +200,7 @@ const props = defineProps({
                         </div>
 
                         <Link
-                            :href="route('sellers.index')"
+                            href="/admin/sellers"
                             class="text-xs font-black text-orange-600 hover:underline uppercase flex items-center gap-1.5"
                         >
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -234,3 +249,74 @@ const props = defineProps({
         </div>
     </AuthenticatedLayout>
 </template>
+
+<style scoped>
+/* =========================================================
+   MOBILE RESPONSIVE FIXES — ADMIN DASHBOARD OVERVIEW
+   ========================================================= */
+
+@media (max-width: 640px) {
+    /* Prevents horizontal scrolling (offside) */
+    .max-w-7xl {
+        width: 100% !important;
+        max-width: 100vw !important;
+        box-sizing: border-box !important;
+        overflow-x: hidden !important;
+    }
+
+    /* Cards Responsive Adjustment */
+    .bg-white.border-2, 
+    .bg-white.border-4 {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        padding: 0.85rem !important;
+    }
+
+    /* Statistic Numbers */
+    .text-2xl {
+        font-size: 1.5rem !important;
+        line-height: 1.75rem !important;
+    }
+
+    /* Quick Action Buttons (2-Column Grid on Mobile) */
+    .grid-cols-1.sm\:grid-cols-2 {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 0.5rem !important;
+    }
+
+    .grid-cols-1.sm\:grid-cols-2 a {
+        padding: 0.65rem 0.5rem !important;
+        font-size: 0.65rem !important;
+        border-radius: 0.75rem !important;
+        box-shadow: 2px 2px 0px 0px #111827 !important;
+        flex-direction: column !important;
+        text-align: center !important;
+        gap: 0.25rem !important;
+    }
+
+    .grid-cols-1.sm\:grid-cols-2 a svg {
+        width: 1.1rem !important;
+        height: 1.1rem !important;
+    }
+
+    /* Table Fixes */
+    .overflow-x-auto {
+        -webkit-overflow-scrolling: touch;
+    }
+
+    table {
+        min-width: 100% !important;
+        width: 100% !important;
+        table-layout: fixed !important;
+    }
+
+    table th, table td {
+        padding: 0.5rem 0.35rem !important;
+        font-size: 0.65rem !important;
+        word-break: break-word !important;
+    }
+}
+</style>
