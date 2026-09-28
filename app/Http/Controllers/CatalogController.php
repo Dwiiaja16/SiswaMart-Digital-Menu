@@ -5,10 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\Product;
 use App\Models\Category;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 class CatalogController extends Controller
 {
+    /**
+     * Halaman Utama Katalog (Dashboard Publik)
+     */
     public function index(Request $request)
     {
         $search = $request->input('search');
@@ -16,11 +20,11 @@ class CatalogController extends Controller
 
         $query = $this->getBaseProductQuery();
 
-        if ($search) {
+        if (!empty($search)) {
             $query->where('name', 'like', "%{$search}%");
         }
 
-        if ($categoryId) {
+        if (!empty($categoryId)) {
             $query->whereHas('categories', function ($q) use ($categoryId) {
                 $q->where('categories.id', $categoryId);
             });
@@ -33,13 +37,15 @@ class CatalogController extends Controller
             'products'   => $products,
             'categories' => $categories,
             'filters'    => [
-                'search'   => $search,
-                'category' => $categoryId,
+                'search'   => $search ?? '',
+                'category' => $categoryId ?? '',
             ],
         ]);
     }
 
-    // Halaman Kategori & Filter Harga (Oatside Style)
+    /**
+     * Halaman Kategori & Filter Harga (Oatside Style)
+     */
     public function categories(Request $request)
     {
         $search = $request->input('search');
@@ -52,7 +58,7 @@ class CatalogController extends Controller
         $query = $this->getBaseProductQuery();
 
         // 1. Filter Pencarian
-        if ($search) {
+        if (!empty($search)) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('description', 'like', "%{$search}%");
@@ -60,7 +66,7 @@ class CatalogController extends Controller
         }
 
         // 2. Filter Kategori
-        if ($categoryId) {
+        if (!empty($categoryId)) {
             $query->whereHas('categories', function ($q) use ($categoryId) {
                 $q->where('categories.id', $categoryId);
             });
@@ -75,7 +81,7 @@ class CatalogController extends Controller
         }
 
         // 4. Filter Status Stok
-        if ($status) {
+        if (!empty($status)) {
             $query->where('stock_status', $status);
         }
 
@@ -85,7 +91,6 @@ class CatalogController extends Controller
         } elseif ($sort === 'price_desc') {
             $query->orderBy('price', 'desc');
         } elseif ($sort === 'views_desc') {
-            // Urutkan berdasarkan terbanyak dilihat / terpopuler
             $query->orderBy('views_count', 'desc');
         } else {
             $query->latest();
@@ -124,32 +129,42 @@ class CatalogController extends Controller
         ]);
     }
 
+    /**
+     * Query Dasar Produk (Anti-Crash & Null-Safe)
+     */
     private function getBaseProductQuery()
     {
-        return Product::whereHas('shop', function ($q) {
-            $q->where('status', 'active');
-        })
-        ->whereHas('shop.user', function ($q) {
+        return Product::whereHas('shop.user', function ($q) {
             $q->where('is_suspended', false);
         })
-        ->with(['shop.user', 'categories', 'reviews' => function ($q) {
+        ->whereHas('shop', function ($q) {
+            // Null-safe status check: hanya toko aktif / tidak disuspend
+            $q->where(function ($sq) {
+                $sq->whereNull('status')->orWhere('status', '!=', 'suspended');
+            });
+        })
+        ->with(['shop.user', 'categories', 'images', 'reviews' => function ($q) {
             $q->where('is_approved', true)->latest();
         }]);
     }
 
+    /**
+     * Transformasi Koleksi Produk untuk Frontend
+     */
     private function transformProducts($productCollection)
     {
         return $productCollection->map(function ($product) {
-            $rawPhone = $product->shop->user->whatsapp_number ?? '';
-            $phone = $product->shop->user->whatsapp_number ?? '';
+            $rawPhone = $product->shop?->user?->whatsapp_number ?? '';
+            $phone = preg_replace('/[^0-9]/', '', (string) $rawPhone);
             if (str_starts_with($phone, '0')) {
                 $phone = '62' . substr($phone, 1);
             }
 
-            $message = "Halo {$product->shop->name}, saya mau pesan *{$product->name}* seharga Rp " . number_format($product->price, 0, ',', '.') . " melalui SiswaMart. Apakah masih ada?";
+            $shopName = $product->shop?->name ?? 'Lapak Siswa';
+            $message = "Halo {$shopName}, saya mau pesan *{$product->name}* seharga Rp " . number_format($product->price, 0, ',', '.') . " melalui SiswaMart. Apakah masih ada?";
             $waUrl = "https://wa.me/{$phone}?text=" . urlencode($message);
 
-            $approvedReviews = $product->reviews;
+            $approvedReviews = $product->reviews ?? collect();
             $avgRating = $approvedReviews->avg('rating') ? round($approvedReviews->avg('rating'), 1) : null;
 
             $imageUrl = null;
@@ -165,28 +180,34 @@ class CatalogController extends Controller
                 }
             }
 
+            $avatarUrl = null;
+            if ($product->shop) {
+                $avatarUrl = $product->shop->avatar_url;
+            }
+
             return [
                 'id'           => $product->id,
                 'name'         => $product->name,
-                'description'  => $product->description,
+                'description'  => $product->description ?? '',
                 'price'        => $product->price,
                 'stock_status' => $product->stock_status,
                 'views_count'  => $product->views_count ?? 0,
                 'image'        => $imageUrl,
-                'categories'   => $product->categories,
+                'images'       => $product->images ?? [],
+                'categories'   => $product->categories ?? [],
 
                 'shop'         => [
-                    'id'              => $product->shop->id,
-                    'name'            => $product->shop->name,
-                    'is_open'         => (bool) $product->shop->is_open,
-                    'avatar_url'      => $product->shop->avatar_path ? asset('storage/' . $product->shop->avatar_path) : null,
+                    'id'              => $product->shop?->id,
+                    'name'            => $shopName,
+                    'is_open'         => (bool) ($product->shop?->is_open ?? true),
+                    'avatar_url'      => $avatarUrl,
                     'whatsapp_number' => $rawPhone,
                     'user'            => [
-                        'id'              => $product->shop->user->id ?? null,
+                        'id'              => $product->shop?->user?->id ?? null,
                         'whatsapp_number' => $rawPhone,
                     ],
                 ],
-                
+
                 'wa_url'        => $waUrl,
                 'avg_rating'    => $avgRating,
                 'total_reviews' => $approvedReviews->count(),
@@ -195,61 +216,97 @@ class CatalogController extends Controller
         });
     }
 
-    // Method untuk Halaman Detail Produk
-    public function show(Product $product)
+    /**
+     * Halaman Detail Produk (Support ID & Route Model Binding, Null-Safe)
+     */
+    public function show($id)
     {
-        // 1. Cegah akses jika penjual ter-suspend
-        if ($product->shop && $product->shop->user && $product->shop->user->is_suspended) {
-            abort(404, 'Produk tidak ditemukan atau toko sedang dinonaktifkan.');
+        // 1. Ambil produk secara aman (baik berupa model instance maupun ID int/string)
+        if ($id instanceof Product) {
+            $product = $id->loadMissing([
+                'shop.user',
+                'categories',
+                'images',
+                'reviews' => function ($q) {
+                    $q->where('is_approved', true)->latest();
+                },
+            ]);
+        } else {
+            $product = Product::with([
+                'shop.user',
+                'categories',
+                'images',
+                'reviews' => function ($q) {
+                    $q->where('is_approved', true)->latest();
+                },
+            ])->find($id);
         }
 
-        // 2. Tambah jumlah tayangan (view count) setiap ada yang melihat detail
+        // Jika produk tidak ditemukan di database
+        if (!$product) {
+            return redirect()->route('catalog.index')->with('error', 'Produk tidak ditemukan.');
+        }
+
+        // 2. Cegah akses jika penjual / toko ter-suspend
+        if ($product->shop?->user?->is_suspended || $product->shop?->isSuspended()) {
+            return redirect()->route('catalog.index')->with('error', 'Lapak penjual ini sedang dinonaktifkan.');
+        }
+
+        // 3. Tambah jumlah tayangan produk
         $product->increment('views_count');
 
-        // 3. Load relasi lapak, user penjual, categories (plural), dan ulasan
-        $product->load([
-            'shop.user', 
-            'categories', 
-            'reviews' => function ($q) {
-                $q->where('is_approved', true)->latest();
-            }
-        ]);
-
-        // 4. Format nomor WhatsApp penjual
-        $rawPhone = $product->shop->user->whatsapp_number ?? '';
-        $phone = $product->shop->user->whatsapp_number ?? '';
+        // 4. Format nomor WhatsApp penjual secara aman
+        $rawPhone = $product->shop?->user?->whatsapp_number ?? '';
+        $phone = preg_replace('/[^0-9]/', '', (string) $rawPhone);
         if (str_starts_with($phone, '0')) {
             $phone = '62' . substr($phone, 1);
         }
 
-        // 5. Draf pesan WA
-        $message = "Halo {$product->shop->name}, saya mau pesan *{$product->name}* seharga Rp " . number_format($product->price, 0, ',', '.') . " melalui SiswaMart. Apakah masih ada?";
+        // 5. Draf pesan WhatsApp
+        $shopName = $product->shop?->name ?? 'Lapak Siswa';
+        $message = "Halo {$shopName}, saya mau pesan *{$product->name}* seharga Rp " . number_format($product->price, 0, ',', '.') . " melalui SiswaMart. Apakah masih ada?";
         $waUrl = "https://wa.me/{$phone}?text=" . urlencode($message);
 
         // 6. Ulasan & Rating
-        $approvedReviews = $product->reviews;
+        $approvedReviews = $product->reviews ?? collect();
         $avgRating = $approvedReviews->avg('rating') ? round($approvedReviews->avg('rating'), 1) : null;
 
-        // 7. Susun Array Data Produk
+        // 7. Cek avatar lapak
+        $avatarUrl = $product->shop?->avatar_url;
+
+        // 8. Cek otorisasi user aktif
+        $currentUser = Auth::user();
+        $isOwner = false;
+        if ($currentUser && $currentUser->shop && $product->shop) {
+            $isOwner = (int) $currentUser->shop->id === (int) $product->shop->id;
+        }
+
+        $hasReviewed = false;
+        if ($currentUser && $product->reviews) {
+            $hasReviewed = $product->reviews->contains('user_id', $currentUser->id);
+        }
+
+        // 9. Susun Array Data Produk
         $productData = [
             'id'           => $product->id,
             'name'         => $product->name,
-            'description'  => $product->description,
+            'description'  => $product->description ?? '',
             'price'        => $product->price,
             'stock_status' => $product->stock_status,
-            'views_count'  => $product->views_count,
-            'image'        => $product->image, 
-            'categories'   => $product->categories,
-            
+            'views_count'  => $product->views_count ?? 0,
+            'image'        => $product->image,
+            'images'       => $product->images ?? [],
+            'categories'   => $product->categories ?? [],
+
             'shop'         => [
-                'id'              => $product->shop->id,
-                'name'            => $product->shop->name,
-                'owner_name'      => $product->shop->user->username ?? 'Penjual SiswaMart',
-                'is_open'         => (bool) $product->shop->is_open,
-                'avatar_url'      => $product->shop->avatar_path ? asset('storage/' . $product->shop->avatar_path) : null,
+                'id'              => $product->shop?->id,
+                'name'            => $shopName,
+                'owner_name'      => $product->shop?->user?->username ?? $product->shop?->user?->name ?? 'Penjual SiswaMart',
+                'is_open'         => (bool) ($product->shop?->is_open ?? true),
+                'avatar_url'      => $avatarUrl,
                 'whatsapp_number' => $rawPhone,
                 'user'            => [
-                    'id'              => $product->shop->user->id ?? null,
+                    'id'              => $product->shop?->user?->id ?? null,
                     'whatsapp_number' => $rawPhone,
                 ],
             ],
@@ -259,16 +316,51 @@ class CatalogController extends Controller
             'reviews'       => $approvedReviews->map(function ($rev) {
                 return [
                     'id'            => $rev->id,
-                    'reviewer_name' => $rev->reviewer_name,
-                    'rating'        => $rev->rating,
-                    'comment'       => $rev->comment,
-                    'created_at'    => $rev->created_at->diffForHumans(),
+                    'reviewer_name' => $rev->reviewer_name ?? 'Pengunjung',
+                    'rating'        => (int) $rev->rating,
+                    'comment'       => $rev->comment ?? '',
+                    'created_at'    => $rev->created_at ? $rev->created_at->diffForHumans() : 'Baru saja',
                 ];
             }),
         ];
 
+        // 10. Rekomendasi Produk Serupa (Kategori Sama)
+        $categoryIds = $product->categories ? $product->categories->pluck('id')->toArray() : [];
+        $relatedProducts = collect();
+
+        if (!empty($categoryIds)) {
+            $relatedQuery = Product::where('id', '!=', $product->id)
+                ->whereHas('categories', function ($q) use ($categoryIds) {
+                    $q->whereIn('categories.id', $categoryIds);
+                })
+                ->whereHas('shop', function ($q) {
+                    $q->where('is_open', true)
+                      ->where(function ($sq) {
+                          $sq->whereNull('status')->orWhere('status', '!=', 'suspended');
+                      });
+                })
+                ->whereHas('shop.user', function ($q) {
+                    $q->where('is_suspended', false);
+                })
+                ->with([
+                    'shop.user',
+                    'images',
+                    'categories',
+                    'reviews' => function ($q) {
+                        $q->where('is_approved', true)->latest();
+                    },
+                ])
+                ->latest()
+                ->take(4);
+
+            $relatedProducts = $this->transformProducts($relatedQuery->get());
+        }
+
         return Inertia::render('Catalog/Show', [
-            'product' => $productData,
+            'product'         => $productData,
+            'relatedProducts' => $relatedProducts,
+            'isOwner'         => $isOwner,
+            'hasReviewed'     => $hasReviewed,
         ]);
     }
 }

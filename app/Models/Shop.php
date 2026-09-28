@@ -18,12 +18,29 @@ class Shop extends Model
         'is_open',
         'status',
         'last_status_change_at',
+        'avatar_path',
     ];
 
     protected $casts = [
         'is_open'               => 'boolean',
         'last_status_change_at' => 'datetime',
     ];
+
+    protected $appends = ['avatar_url'];
+
+    /**
+     * Accessor aman untuk avatar_url dengan fallback null-safe
+     */
+    public function getAvatarUrlAttribute(): ?string
+    {
+        if (!empty($this->avatar_path)) {
+            if (str_starts_with($this->avatar_path, 'http')) {
+                return $this->avatar_path;
+            }
+            return asset('storage/' . ltrim($this->avatar_path, '/'));
+        }
+        return null;
+    }
 
     /**
      * Scope: hanya toko yang tidak di-suspend

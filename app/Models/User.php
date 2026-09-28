@@ -3,26 +3,45 @@
 namespace App\Models;
 
 use Database\Factories\UserFactory;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['username', 'name', 'email', 'password', 'role', 'whatsapp_number', 'is_suspended', 'google_id', 'login_method'])]
-#[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
     /**
-     * Set Nilai Default Atribut saat User Baru Dibuat
+     * Kolom yang dapat diisi secara mass-assignment
+     */
+    protected $fillable = [
+        'username',
+        'name',
+        'email',
+        'password',
+        'role',
+        'whatsapp_number',
+        'is_suspended',
+        'google_id',
+        'login_method',
+    ];
+
+    /**
+     * Kolom yang disembunyikan saat serialisasi JSON
+     */
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+
+    /**
+     * Nilai default atribut saat record baru dibuat
      */
     protected $attributes = [
-        'role'         => 'user',  // KUNCI UTAMA: Wajib default 'user' (Pembeli/Pengunjung)
+        'role'         => 'user',  // Default: 'user' (Pembeli / Pengunjung)
         'is_suspended' => false,
     ];
 
@@ -70,5 +89,10 @@ class User extends Authenticatable
     public function isUser(): bool
     {
         return $this->role === 'user';
+    }
+
+    public function sellerProfile()
+    {
+        return $this->hasOne(SellerProfile::class);
     }
 }

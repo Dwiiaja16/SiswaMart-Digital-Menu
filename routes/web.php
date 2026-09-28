@@ -129,7 +129,10 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('penjual')->group(function () {
         Route::get('/products', [ProductController::class, 'index'])->name('products.index');
         Route::post('/products', [ProductController::class, 'store'])->name('products.store');
-        Route::post('/products/{product}', [ProductController::class, 'update'])->name('products.update');
+        
+        // MENDUKUNG METODE POST, PUT, DAN PATCH AGAR UPLOAD MULTI-IMAGE & SPOOFING TIDAK ERROR 405
+        Route::match(['post', 'put', 'patch'], '/products/{product}', [ProductController::class, 'update'])->name('products.update');
+        
         Route::delete('/products/{product}', [ProductController::class, 'destroy'])->name('products.destroy');
     });
 
@@ -143,6 +146,10 @@ Route::middleware(['auth'])->group(function () {
         // Management Kategori & Penjual
         Route::resource('categories', CategoryController::class)->except(['create', 'edit', 'show']);
         Route::resource('sellers', SellerController::class)->except(['create', 'edit', 'show']);
+        Route::patch('/sellers/{user}/suspend', [SellerController::class, 'toggleSuspend'])->name('sellers.toggle-suspend');
+        Route::resource('categories', CategoryController::class)->except(['create', 'edit', 'show']);
+        Route::resource('sellers', SellerController::class)->except(['create', 'edit', 'show']);
+        Route::post('/sellers/{seller}', [SellerController::class, 'update'])->name('sellers.update');
         Route::patch('/sellers/{user}/suspend', [SellerController::class, 'toggleSuspend'])->name('sellers.toggle-suspend');
 
         // Moderasi Produk
@@ -161,7 +168,7 @@ Route::middleware(['auth'])->group(function () {
 
 });
 
-// Pemicu Hapus Cache Server (Bisa Diakses Tanpa Login Biar Gak Keblokir Middleware)
+// Pemicu Hapus Cache Server
 Route::get('/clear-cache-now', function () {
     \Illuminate\Support\Facades\Artisan::call('route:clear');
     \Illuminate\Support\Facades\Artisan::call('config:clear');
@@ -183,5 +190,9 @@ Route::get('/sitemap.xml', function () {
     return response($xml, 200)
         ->header('Content-Type', 'text/xml; charset=UTF-8');
 });
+
+Route::delete('/product-images/{image}', [ProductController::class, 'destroyImage'])
+    ->name('product-images.destroy')
+    ->middleware(['auth']);
 
 require __DIR__ . '/auth.php';

@@ -26,7 +26,7 @@ const props = defineProps({
         <div class="py-6 sm:py-8 bg-stone-50 min-h-[calc(100vh-80px)] selection:bg-orange-500 selection:text-white">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 sm:space-y-8">
                 
-                <!-- Kartu Statistik Neo-Brutalism -->
+                <!-- 1. KARTU STATISTIK UTAMA NEO-BRUTALISM (4 GRID) -->
                 <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
                     <!-- Total Penjual -->
                     <div class="bg-white border-2 sm:border-4 border-gray-900 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] sm:shadow-[6px_6px_0px_0px_rgba(17,24,39,1)] space-y-1 sm:space-y-2">
@@ -64,7 +64,7 @@ const props = defineProps({
                         </p>
                     </div>
 
-                    <!-- Total Produk Promosi -->
+                    <!-- Total Produk Katalog -->
                     <div class="bg-white border-2 sm:border-4 border-gray-900 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] sm:shadow-[6px_6px_0px_0px_rgba(17,24,39,1)] space-y-1 sm:space-y-2">
                         <div class="flex items-center justify-between">
                             <span class="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-gray-400">Total Produk</span>
@@ -82,7 +82,7 @@ const props = defineProps({
                         </p>
                     </div>
 
-                    <!-- Kategori Produk -->
+                    <!-- Kategori Menu -->
                     <div class="bg-white border-2 sm:border-4 border-gray-900 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] sm:shadow-[6px_6px_0px_0px_rgba(17,24,39,1)] space-y-1 sm:space-y-2">
                         <div class="flex items-center justify-between">
                             <span class="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-gray-400">Kategori Menu</span>
@@ -101,86 +101,7 @@ const props = defineProps({
                     </div>
                 </div>
 
-                <!-- Tombol Aksi Cepat & Navigasi Admin -->
-                <div class="bg-white border-2 sm:border-4 border-gray-900 rounded-2xl sm:rounded-3xl p-4 sm:p-8 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] sm:shadow-[6px_6px_0px_0px_rgba(17,24,39,1)] space-y-4">
-                    <div class="flex items-center gap-3 border-b-2 border-gray-100 pb-3">
-                        <div class="w-8 h-8 sm:w-9 sm:h-9 bg-orange-400 border-2 border-gray-900 rounded-xl flex items-center justify-center shrink-0 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]">
-                            <svg class="w-4 h-4 sm:w-5 sm:h-5 text-gray-900" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 class="text-base sm:text-lg font-black uppercase tracking-tight text-gray-900">
-                                Aksi Cepat Manajemen
-                            </h3>
-                            <p class="text-[10px] sm:text-xs font-bold text-gray-400 uppercase">
-                                Pintasan navigasi pengelolaan sistem SiswaMart
-                            </p>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-2 lg:flex lg:flex-wrap gap-2.5 sm:gap-4 pt-1">
-                        <!-- Kelola Penjual -->
-                        <Link
-                            :href="route('admin.sellers.index')"
-                            class="px-3 sm:px-5 py-2.5 sm:py-3 bg-orange-500 hover:bg-orange-400 border-2 border-gray-900 text-gray-900 font-black text-[10px] sm:text-xs uppercase tracking-wider rounded-xl shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] active:scale-95 transition flex items-center justify-center gap-1.5"
-                        >
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                            </svg>
-                            Kelola Penjual
-                        </Link>
-
-                        <!-- Kelola Kategori -->
-                        <Link
-                            :href="route('admin.categories.index')"
-                            class="px-3 sm:px-5 py-2.5 sm:py-3 bg-amber-400 hover:bg-amber-300 border-2 border-gray-900 text-gray-900 font-black text-[10px] sm:text-xs uppercase tracking-wider rounded-xl shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] active:scale-95 transition flex items-center justify-center gap-1.5"
-                        >
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                            </svg>
-                            Kelola Kategori
-                        </Link>
-
-                        <!-- Moderasi Produk -->
-                        <Link
-                            :href="route('admin.products.index')"
-                            class="px-3 sm:px-5 py-2.5 sm:py-3 bg-sky-400 hover:bg-sky-300 border-2 border-gray-900 text-gray-900 font-black text-[10px] sm:text-xs uppercase tracking-wider rounded-xl shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] active:scale-95 transition flex items-center justify-center gap-1.5"
-                        >
-                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
-                                <path d="m3.3 7 8.7 5 8.7-5" />
-                                <path d="M12 22V12" />
-                            </svg>
-                            Moderasi Produk
-                        </Link>
-
-                        <!-- Katalog Publik -->
-                        <Link
-                            :href="route('catalog.index')"
-                            target="_blank"
-                            class="px-3 sm:px-5 py-2.5 sm:py-3 bg-stone-100 hover:bg-stone-200 border-2 border-gray-900 text-gray-900 font-black text-[10px] sm:text-xs uppercase tracking-wider rounded-xl shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] active:scale-95 transition flex items-center justify-center gap-1.5"
-                        >
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                            </svg>
-                            Katalog Publik
-                        </Link>
-
-                        <!-- Rekap Lapak -->
-                        <Link
-                            :href="route('admin.recap')"
-                            class="col-span-2 sm:col-span-1 px-3 sm:px-5 py-2.5 sm:py-3 bg-yellow-300 hover:bg-yellow-200 border-2 border-gray-900 text-gray-900 font-black text-[10px] sm:text-xs uppercase tracking-wider rounded-xl shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] active:scale-95 transition flex items-center justify-center gap-1.5"
-                        >
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                            </svg>
-                            Rekap Lapak
-                        </Link>
-                    </div>
-                </div>
-
-                <!-- Tabel Penjual Terbaru -->
+                <!-- 2. TABEL PENJUAL TERBARU NEO-BRUTALISM -->
                 <div class="bg-white border-2 sm:border-4 border-gray-900 rounded-2xl sm:rounded-3xl p-4 sm:p-8 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] sm:shadow-[6px_6px_0px_0px_rgba(17,24,39,1)] space-y-4 sm:space-y-6">
                     <div class="flex justify-between items-center border-b-2 border-gray-100 pb-3 sm:pb-4">
                         <div class="flex items-center gap-3">
@@ -200,7 +121,7 @@ const props = defineProps({
                         </div>
 
                         <Link
-                            href="/admin/sellers"
+                            :href="route('admin.sellers.index')"
                             class="text-xs font-black text-orange-600 hover:underline uppercase flex items-center gap-1.5"
                         >
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -249,74 +170,3 @@ const props = defineProps({
         </div>
     </AuthenticatedLayout>
 </template>
-
-<style scoped>
-/* =========================================================
-   MOBILE RESPONSIVE FIXES — ADMIN DASHBOARD OVERVIEW
-   ========================================================= */
-
-@media (max-width: 640px) {
-    /* Prevents horizontal scrolling (offside) */
-    .max-w-7xl {
-        width: 100% !important;
-        max-width: 100vw !important;
-        box-sizing: border-box !important;
-        overflow-x: hidden !important;
-    }
-
-    /* Cards Responsive Adjustment */
-    .bg-white.border-2, 
-    .bg-white.border-4 {
-        margin-left: 0 !important;
-        margin-right: 0 !important;
-        width: 100% !important;
-        box-sizing: border-box !important;
-        padding: 0.85rem !important;
-    }
-
-    /* Statistic Numbers */
-    .text-2xl {
-        font-size: 1.5rem !important;
-        line-height: 1.75rem !important;
-    }
-
-    /* Quick Action Buttons (2-Column Grid on Mobile) */
-    .grid-cols-1.sm\:grid-cols-2 {
-        display: grid !important;
-        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-        gap: 0.5rem !important;
-    }
-
-    .grid-cols-1.sm\:grid-cols-2 a {
-        padding: 0.65rem 0.5rem !important;
-        font-size: 0.65rem !important;
-        border-radius: 0.75rem !important;
-        box-shadow: 2px 2px 0px 0px #111827 !important;
-        flex-direction: column !important;
-        text-align: center !important;
-        gap: 0.25rem !important;
-    }
-
-    .grid-cols-1.sm\:grid-cols-2 a svg {
-        width: 1.1rem !important;
-        height: 1.1rem !important;
-    }
-
-    /* Table Fixes */
-    .overflow-x-auto {
-        -webkit-overflow-scrolling: touch;
-    }
-
-    table {
-        min-width: 100% !important;
-        width: 100% !important;
-        table-layout: fixed !important;
-    }
-
-    table th, table td {
-        padding: 0.5rem 0.35rem !important;
-        font-size: 0.65rem !important;
-        word-break: break-word !important;
-    }
-}
-</style>

@@ -31,8 +31,8 @@ const faqs = [
         a: "Gak perlu repot! Ketika kamu klik tombol 'Pesan via WhatsApp' di halaman produk, SiswaMart otomatis bikinin template pesan yang rapi lengkap dengan nama produk dan harganya.",
     },
     {
-        q: "Saya siswa SMKN 11 dan mau jualan juga, gimana caranya?",
-        a: "Keren banget! Kamu bisa daftar akun, lalu hubungi Admin SiswaMart untuk verifikasi tokomu agar bisa mulai memajang produk kreatifmu di SiswaMart.",
+        q: "Saya siswa SMKN 11 Bandung dan mau jualan juga, gimana caranya?",
+    a: "Keren banget! Kamu bisa klik tombol 'Daftar Penjual via WA' di beranda untuk terhubung langsung dengan Admin SiswaMart. Admin akan membantu mendaftarkan dan memverifikasi akun lapakmu agar kamu bisa langsung berjualan."
     },
 ];
 </script>

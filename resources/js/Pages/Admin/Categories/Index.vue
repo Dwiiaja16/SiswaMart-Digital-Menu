@@ -17,9 +17,9 @@ const editForm = useForm({
     name: '',
 });
 
-// Tambah Kategori
+// Tambah Kategori (Diubah ke admin.categories.store)
 const submitCreate = () => {
-    form.post(route('categories.store'), {
+    form.post(route('admin.categories.store'), {
         onSuccess: () => form.reset(),
     });
 };
@@ -35,17 +35,17 @@ const cancelEdit = () => {
     editForm.reset();
 };
 
-// Update Kategori
+// Update Kategori (Diubah ke admin.categories.update)
 const submitUpdate = (id) => {
-    editForm.put(route('categories.update', id), {
+    editForm.put(route('admin.categories.update', id), {
         onSuccess: () => cancelEdit(),
     });
 };
 
-// Hapus Kategori
+// Hapus Kategori (Diubah ke admin.categories.destroy)
 const deleteCategory = (id) => {
     if (confirm('Yakin ingin menghapus kategori ini?')) {
-        useForm({}).delete(route('categories.destroy', id));
+        useForm({}).delete(route('admin.categories.destroy', id));
     }
 };
 </script>
@@ -67,16 +67,6 @@ const deleteCategory = (id) => {
                             Atur Label & Kelompok Jenis Makanan/Minuman SiswaMart
                         </p>
                     </div>
-                    
-                    <Link 
-                        :href="route('dashboard')" 
-                        class="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 bg-amber-400 hover:bg-amber-300 border-2 border-gray-900 text-gray-900 px-3.5 py-2 rounded-xl text-[11px] sm:text-xs font-black uppercase tracking-wider shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] active:scale-95 transition"
-                    >
-                        <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M19 12H5M12 19l-7-7 7-7"/>
-                        </svg>
-                        Kembali ke Dashboard
-                    </Link>
                 </div>
 
                 <!-- 2. Form Tambah Kategori -->

@@ -22,12 +22,25 @@ class Product extends Model
         'image',
     ];
 
+    protected $casts = [
+        'price'       => 'float',
+        'views_count' => 'integer',
+    ];
+
     /**
      * Relasi Many-to-Many ke model Category
      */
     public function categories(): BelongsToMany
     {
         return $this->belongsToMany(Category::class);
+    }
+
+    /**
+     * Relasi BelongsTo ke model Category (Opsional/Fallback jika single category)
+     */
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(Category::class);
     }
 
     /**
@@ -52,5 +65,13 @@ class Product extends Model
     public function notifications(): HasMany
     {
         return $this->hasMany(Notification::class);
+    }
+
+    /**
+     * Relasi ke model ProductImage (Galeri Foto)
+     */
+    public function images(): HasMany
+    {
+        return $this->hasMany(ProductImage::class)->orderBy('sort_order', 'asc');
     }
 }

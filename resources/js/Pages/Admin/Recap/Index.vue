@@ -48,15 +48,6 @@ const doToggleSuspend = () => {
                             Pantau keaktifan & kelola status lapak penjual
                         </p>
                     </div>
-                    <Link
-                        :href="route('dashboard')"
-                        class="inline-flex items-center gap-2 px-4 py-2.5 bg-white border-2 border-gray-900 rounded-xl font-black text-xs uppercase tracking-widest shadow-[3px_3px_0px_0px_#111827] hover:shadow-none hover:translate-x-[3px] hover:translate-y-[3px] transition-all"
-                    >
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
-                        </svg>
-                        Dashboard
-                    </Link>
                 </div>
 
                 <!-- Summary Cards -->

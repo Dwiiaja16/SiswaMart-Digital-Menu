@@ -4,12 +4,29 @@ import { Head, Link, useForm, usePage } from "@inertiajs/vue3";
 
 const props = defineProps({
     product: Object,
+    relatedProducts: {
+        type: Array,
+        default: () => [],
+    },
     isOwner: Boolean,
     hasReviewed: Boolean,
 });
 
 const page = usePage();
 const authUser = computed(() => page.props.auth?.user);
+
+const getRelatedProductImage = (item) => {
+    if (!item) return null;
+    if (item.image) {
+        return getImageUrl(item.image);
+    }
+    if (item.images && item.images.length > 0) {
+        const first = item.images[0];
+        const path = typeof first === "object" ? first.image_path : first;
+        if (path) return getImageUrl(path);
+    }
+    return null;
+};
 
 const isProductOwner = computed(() => {
     if (props.isOwner) return true;
@@ -46,6 +63,57 @@ const submitReview = () => {
     });
 };
 
+// --- MULTI-IMAGE / GALERI SLIDER LOGIC ---
+const allImages = computed(() => {
+    const list = [];
+    if (props.product.image) {
+        list.push(props.product.image);
+    }
+    if (props.product.images && props.product.images.length > 0) {
+        props.product.images.forEach((img) => {
+            const path = typeof img === "object" ? img.image_path : img;
+            if (path && !list.includes(path)) {
+                list.push(path);
+            }
+        });
+    }
+    return list.length > 0 ? list : (props.product.image ? [props.product.image] : []);
+});
+
+const activeImageIndex = ref(0);
+
+const activeImage = computed(() => {
+    return allImages.value[activeImageIndex.value] || "";
+});
+
+const nextSlide = () => {
+    if (allImages.value.length > 1) {
+        activeImageIndex.value = (activeImageIndex.value + 1) % allImages.value.length;
+    }
+};
+
+const prevSlide = () => {
+    if (allImages.value.length > 1) {
+        activeImageIndex.value = (activeImageIndex.value - 1 + allImages.value.length) % allImages.value.length;
+    }
+};
+
+let touchStartX = 0;
+let touchEndX = 0;
+
+const handleTouchStart = (e) => {
+    touchStartX = e.changedTouches[0].screenX;
+};
+
+const handleTouchEnd = (e) => {
+    touchEndX = e.changedTouches[0].screenX;
+    if (touchEndX < touchStartX - 40) {
+        nextSlide();
+    } else if (touchEndX > touchStartX + 40) {
+        prevSlide();
+    }
+};
+
 const getImageUrl = (imagePath) => {
     if (!imagePath) return null;
     if (imagePath.startsWith("http")) return imagePath;
@@ -58,22 +126,19 @@ const whatsappLink = computed(() => {
     if (phone.startsWith('0')) phone = '62' + phone.slice(1);
 
     const shopName = props.product.shop?.name || 'Lapak Siswa';
-    const productName = props.product.name;
-    const price = Number(props.product.price).toLocaleString('id-ID');
+    const productName = props.product.name || '';
+    const price = Number(props.product.price || 0).toLocaleString('id-ID');
     const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
 
-    const messageLines = [
-        `Halo ${shopName}, saya mau pesan produk ini via SiswaMart:`,
-        ``,
-        `📌 Produk: ${productName}`,
-        `💰 Harga: Rp ${price}`,
-        `🔗 Tautan: ${currentUrl}`,
-        ``,
-        `Apakah produk ini ready? Terima kasih!`
-    ];
+    const rawMessage = `Halo ${shopName}, saya mau pesan produk ini via SiswaMart:
 
-    const encodedMessage = messageLines.map(line => encodeURIComponent(line)).join('%0A');
-    return `https://wa.me/${phone}?text=${encodedMessage}`;
+► Produk: ${productName}
+► Harga: Rp ${price}
+► Tautan: ${currentUrl}
+
+Apakah produk ini ready? Terima kasih!`;
+
+    return `https://wa.me/${phone}?text=${encodeURIComponent(rawMessage.trim())}`;
 });
 
 const copied = ref(false);
@@ -142,34 +207,91 @@ const copyLink = async () => {
         <main class="max-w-6xl mx-auto px-4 sm:px-6 pt-6 relative z-10">
             <!-- Hero Card Main -->
             <section class="hero-card reveal">
-                <!-- Panel Image -->
+                <!-- Panel Image Galeri Slider -->
                 <div class="hero-image-panel">
-                    <div class="image-topbar">
-                        <span :class="product.stock_status === 'ready' ? 'status-ready' : product.stock_status === 'pre_order' ? 'status-preorder' : 'status-empty'" class="status-chip">
+
+                    <!-- Gambar Utama & Controls -->
+                    <div 
+                        class="main-image-wrap group"
+                        @touchstart.passive="handleTouchStart"
+                        @touchend.passive="handleTouchEnd"
+                    >
+                        <div class="image-pattern" aria-hidden="true"></div>
+                        
+                        <img v-if="activeImage" :src="getImageUrl(activeImage)" :alt="product.name" loading="lazy" class="main-product-image" />
+                        
+                        <div v-else class="image-empty">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span>Belum Ada Foto</span>
+                        </div>
+
+                        <!-- Area Klik Navigasi Kiri / Kanan -->
+                        <div 
+                            v-if="allImages.length > 1"
+                            @click="prevSlide" 
+                            class="absolute left-0 top-0 bottom-10 w-1/3 cursor-pointer z-10"
+                            title="Foto Sebelumnya"
+                        ></div>
+                        <div 
+                            v-if="allImages.length > 1"
+                            @click="nextSlide" 
+                            class="absolute right-0 top-0 bottom-10 w-1/3 cursor-pointer z-10"
+                            title="Foto Selanjutnya"
+                        ></div>
+
+                        <!-- INDIKATOR GARIS BAR SEGMEN DI BAWAH GAMBAR -->
+                        <div v-if="allImages.length > 1" class="absolute bottom-3 inset-x-0 px-4 flex gap-1.5 z-20 justify-center">
+                            <button
+                                v-for="(img, idx) in allImages"
+                                :key="idx"
+                                type="button"
+                                @click.stop="activeImageIndex = idx"
+                                :class="[
+                                    'h-1.5 rounded-full transition-all duration-300 border border-gray-900/40 cursor-pointer p-0',
+                                    idx === activeImageIndex 
+                                        ? 'flex-1 bg-orange-500 shadow-sm ring-1 ring-orange-400' 
+                                        : 'flex-1 bg-stone-300/80 hover:bg-stone-400'
+                                ]"
+                                :title="`Lihat foto ${idx + 1}`"
+                            ></button>
+                        </div>
+                    </div>
+
+                    <!-- Meta Info Below Image: Status Stok & Kategori (Dipindah ke Bawah) -->
+                    <div class="flex flex-wrap items-center justify-between gap-2.5 mt-3 pt-1">
+                        <!-- Status Stok Chip -->
+                        <span :class="product.stock_status === 'ready' ? 'status-ready' : product.stock_status === 'pre_order' ? 'status-preorder' : 'status-empty'" class="status-chip m-0">
                             <span class="status-dot"></span>
                             {{ product.stock_status === "ready" ? "Ready Stock" : product.stock_status === "pre_order" ? "Pre-Order" : "Habis" }}
                         </span>
 
-                        <div class="category-list">
+                        <!-- Category Chips List -->
+                        <div class="category-list flex flex-wrap items-center gap-1.5">
                             <template v-if="product.categories && product.categories.length > 0">
-                                <span v-for="cat in product.categories" :key="cat.id" class="category-chip">
+                                <span v-for="cat in product.categories" :key="cat.id" class="category-chip m-0">
                                     {{ cat.name }}
                                 </span>
                             </template>
-                            <span v-else class="category-chip">
+                            <span v-else class="category-chip m-0">
                                 {{ product.category?.name || product.category || "Kreatif" }}
                             </span>
                         </div>
                     </div>
 
-                    <div class="main-image-wrap group">
-                        <div class="image-pattern" aria-hidden="true"></div>
-                        <img v-if="product.image" :src="getImageUrl(product.image)" :alt="product.name" loading="lazy" class="main-product-image" />
-                        <div v-else class="image-empty">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                            <span>Belum Ada Foto</span>
-                        </div>
-                        <div class="image-sticker">SMKN 11<br />KARYA SISWA★</div>
+                    <!-- THUMBNAIL SELECTOR (Gaya Neobrutalisme) -->
+                    <div v-if="allImages.length > 1" class="gallery-thumbnails mt-3">
+                        <button
+                            v-for="(img, idx) in allImages"
+                            :key="idx"
+                            @click="activeImageIndex = idx"
+                            type="button"
+                            class="thumb-item"
+                            :class="{ 'thumb-active': activeImageIndex === idx }"
+                        >
+                            <img :src="getImageUrl(img)" :alt="'Thumbnail ' + (idx + 1)" />
+                        </button>
                     </div>
                 </div>
 
@@ -188,7 +310,7 @@ const copyLink = async () => {
                     <!-- Indikator Total Views (Dilihat) -->
                     <div class="views-badge">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                        <span>Dilihat <strong>{{ Number(product.views_count || 0).toLocaleString("id-ID") }}</strong> kali oleh pembeli</span>
+                        <span>Dilihat <strong>{{ Number(product.views_count || 0).toLocaleString("id-ID") }}</strong> kali</span>
                     </div>
 
                     <div class="price-box">
@@ -206,11 +328,11 @@ const copyLink = async () => {
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
                         </div>
                         <div class="seller-copy">
-                            <p class="seller-label">PEMILIK LAPAK</p>
+                            <p class="seller-label">PEMILIK TOKO</p>
                             <h2>{{ product.shop?.name || "Lapak Entrepreneur Siswa" }}</h2>
                             <p :class="product.shop?.is_open !== false ? 'shop-open' : 'shop-closed'">
                                 <span></span>
-                                Lapak {{ product.shop?.is_open !== false ? "Buka (Siap Melayani)" : "Sedang Tutup" }}
+                                Toko {{ product.shop?.is_open !== false ? "Buka (Siap Melayani)" : "Sedang Tutup" }}
                             </p>
                         </div>
                     </div>
@@ -224,11 +346,11 @@ const copyLink = async () => {
 
                         <button v-else-if="isProductOwner" disabled class="owner-lock-btn">
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                            <span>Ini Produk Lapakmu Sendiri</span>
+                            <span>Ini Produk Tokomu Sendiri</span>
                         </button>
 
                         <button v-else disabled class="wa-button disabled-wa">
-                            Lapak Sedang Tutup
+                            Toko Sedang Tutup
                         </button>
 
                         <p class="cta-note">
@@ -281,7 +403,7 @@ const copyLink = async () => {
                                         </div>
                                         <div>
                                             <strong>{{ rev.user?.name || rev.reviewer_name || "Siswa Pembeli" }}</strong>
-                                            <span>Siswa SMKN 11</span>
+                                            <span></span>
                                         </div>
                                     </div>
                                     <div class="review-rating">
@@ -301,8 +423,52 @@ const copyLink = async () => {
                     </article>
                 </div>
 
-                <!-- Form Ulasan Side Panel -->
+                <!-- Kolom Samping (Cara Pemesanan & Form Ulasan) -->
                 <aside class="content-side">
+                    <!-- KARTU PANDUAN CARA PEMESANAN (POSISI SEBELUM FORM ULASAN) -->
+                    <article class="content-card reveal how-to-order-card">
+                        <div class="section-heading">
+                            <div class="heading-icon order-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            </div>
+                            <div>
+                                <p>PANDUAN PRAKTIS</p>
+                                <h2>Cara Pemesanan</h2>
+                            </div>
+                        </div>
+
+                        <div class="steps-grid">
+                            <div class="step-item">
+                                <div class="step-number">1</div>
+                                <div class="step-content">
+                                    <h3>Klik Tombol WhatsApp</h3>
+                                    <p>Tekan tombol hijau pesan langsung di atas untuk terhubung otomatis ke WhatsApp penjual.</p>
+                                </div>
+                            </div>
+
+                            <div class="step-item">
+                                <div class="step-number">2</div>
+                                <div class="step-content">
+                                    <h3>Format Otomatis Terisi</h3>
+                                    <p>Pesan format produk, harga, dan link halaman akan otomatis terketik di chat WhatsApp kamu.</p>
+                                </div>
+                            </div>
+
+                            <div class="step-item">
+                                <div class="step-number">3</div>
+                                <div class="step-content">
+                                    <h3>Atur Lokasi & COD</h3>
+                                    <p>Konfirmasi ketersediaan, lalu sepakati waktu dan titik temu penyerahan (COD) di area sekolah.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="order-badge-footer">
+                            <span>⚡ 100% Aman, Tanpa Potongan, Dukung Wirausaha Siswa!</span>
+                        </div>
+                    </article>
+
+                    <!-- Form Ulasan / Notice Pemilik -->
                     <div v-if="isProductOwner" class="notice-card owner-notice reveal">
                         <div class="notice-icon">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
@@ -357,6 +523,148 @@ const copyLink = async () => {
                         </form>
                     </div>
                 </aside>
+            </section>
+
+            <!-- SEKSI REKOMENDASI PRODUK SERUPA (OATSIDE NEOBRUTALISM STYLE) -->
+            <section v-if="relatedProducts && relatedProducts.length > 0" class="mt-12 sm:mt-16 space-y-4 sm:space-y-6">
+                <!-- Section Header Banner -->
+                <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b-4 border-[#362415] pb-3 sm:pb-4">
+                    <div>
+                        <div class="inline-flex items-center gap-1.5 px-3 py-1 bg-[#F9C22E] border-2 border-[#362415] rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider text-[#362415] shadow-[2px_2px_0px_#362415] mb-2">
+                            <svg class="w-3.5 h-3.5 text-[#F25C05]" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                            </svg>
+                            <span>Rekomendasi Terkait</span>
+                        </div>
+                        <h2 class="text-xl sm:text-2xl md:text-3xl font-black text-[#362415] tracking-tight">
+                            Sajian Kategori Sama
+                        </h2>
+                    </div>
+
+                    <Link
+                        v-if="product.categories && product.categories.length > 0"
+                        :href="route('catalog.categories', { category: product.categories[0].id })"
+                        class="inline-flex items-center gap-1.5 text-xs sm:text-sm font-black text-[#362415] hover:text-[#F25C05] bg-white border-2 border-[#362415] px-3.5 py-1.5 sm:py-2 rounded-xl shadow-[3px_3px_0px_#362415] hover:shadow-[1px_1px_0px_#362415] hover:translate-x-[2px] hover:translate-y-[2px] transition-all self-start sm:self-auto"
+                    >
+                        <span>Lihat Semua {{ product.categories[0].name }}</span>
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                        </svg>
+                    </Link>
+                </div>
+
+                <!-- Grid Kartu Produk Serupa (2 Kolom Mobile, 4 Kolom Desktop) -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5 md:gap-6">
+                    <article
+                        v-for="item in relatedProducts"
+                        :key="item.id"
+                        class="bg-[#F4F0E6] rounded-2xl sm:rounded-3xl border-2 sm:border-3 border-[#362415] shadow-[3px_3px_0px_#362415] sm:shadow-[5px_5px_0px_#362415] hover:-translate-y-1 hover:shadow-[6px_6px_0px_#362415] transition-all duration-200 flex flex-col group overflow-hidden"
+                    >
+                        <!-- Area Foto & Badge -->
+                        <Link
+                            :href="route('products.show', item.id)"
+                            class="block relative w-full aspect-[4/5] bg-[#EBE5D8] overflow-hidden border-b-2 sm:border-b-3 border-[#362415]"
+                        >
+                            <img
+                                v-if="getRelatedProductImage(item)"
+                                :src="getRelatedProductImage(item)"
+                                :alt="item.name"
+                                loading="lazy"
+                                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ease-out"
+                            />
+                            <div
+                                v-else
+                                class="w-full h-full flex flex-col items-center justify-center text-[#634C3C]/60 font-black text-[10px] sm:text-xs uppercase gap-1 bg-[#F4F0E6]"
+                            >
+                                <svg class="w-6 h-6 opacity-40 text-[#362415]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <span>Tanpa Foto</span>
+                            </div>
+
+                            <!-- BADGE NAMA TOKO (PERBAIKAN: Diberi -mb-px dan bottom-0 agar menempel sempurna) -->
+                            <div
+                                class="absolute -bottom-px left-0 bg-[#ea580c] text-white pl-2 sm:pl-3 pr-4 sm:pr-6 py-1 flex items-center gap-1 z-10 shadow-sm"
+                                style="clip-path: polygon(0 0, 100% 0, 84% 100%, 0% 100%);"
+                            >
+                                <span class="font-extrabold text-[9px] sm:text-[11px] tracking-wide truncate max-w-[80px] sm:max-w-[110px]">
+                                    {{ product.shop?.name || "Lapak Siswa" }}
+                                </span>
+                            </div>
+
+                            <!-- Status Buka Lapak Top Right -->
+                            <div class="absolute top-2 right-2 z-10">
+                                <span
+                                    :class="item.shop?.is_open ? 'bg-[#bbf7d0] text-[#14532d]' : 'bg-[#fecdd3] text-[#881337]'"
+                                    class="px-2 py-0.5 rounded-full text-[8px] sm:text-[9px] font-black uppercase tracking-wider border border-[#362415] shadow-[1px_1px_0px_#362415] flex items-center gap-1"
+                                >
+                                    <span
+                                        class="w-1.5 h-1.5 rounded-full"
+                                        :class="item.shop?.is_open ? 'bg-[#16a34a] animate-pulse' : 'bg-[#e11d48]'"
+                                    ></span>
+                                    <span>{{ item.shop?.is_open ? 'Buka' : 'Tutup' }}</span>
+                                </span>
+                            </div>
+                        </Link>
+
+                        <!-- Card Content / Info -->
+                        <div class="p-3 sm:p-4 flex flex-col flex-1 bg-white justify-between">
+                            <div>
+                                <!-- Kategori & Status Stok -->
+                                <div class="flex items-center justify-between gap-1 text-[10px] sm:text-[11px] font-bold text-[#634C3C] mb-1.5">
+                                    <span v-if="item.categories && item.categories.length > 0" class="truncate font-black text-[#F25C05] uppercase tracking-wide">
+                                        {{ item.categories[0].name }}
+                                    </span>
+                                    <span v-else class="text-stone-400">Umum</span>
+
+                                    <span
+                                        :class="{
+                                            'bg-emerald-100 text-emerald-800 border-emerald-300': item.stock_status === 'ready',
+                                            'bg-amber-100 text-amber-800 border-amber-300': item.stock_status === 'pre_order',
+                                            'bg-rose-100 text-rose-800 border-rose-300': item.stock_status === 'out_of_stock'
+                                        }"
+                                        class="px-1.5 py-0.5 rounded-md text-[8px] sm:text-[9px] font-black uppercase border shrink-0"
+                                    >
+                                        {{ item.stock_status === 'ready' ? 'Ready' : (item.stock_status === 'pre_order' ? 'PO' : 'Habis') }}
+                                    </span>
+                                </div>
+
+                                <!-- Judul Produk -->
+                                <Link :href="route('products.show', item.id)" class="block">
+                                    <h3 class="font-black text-[#362415] text-xs sm:text-sm md:text-base leading-snug group-hover:text-[#F25C05] transition-colors line-clamp-2">
+                                        {{ item.name }}
+                                    </h3>
+                                </Link>
+                            </div>
+
+                            <!-- Harga & Stats (Rating & Views) -->
+                            <div class="mt-3 pt-2.5 border-t border-[#362415]/15 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <span class="text-[#F25C05] font-black text-xs sm:text-base tracking-tight truncate">
+                                    Rp {{ Number(item.price || 0).toLocaleString('id-ID') }}
+                                </span>
+
+                                <div class="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+                                    <!-- Views Count -->
+                                    <div class="flex items-center gap-0.5 bg-[#F4F0E6] border border-[#362415]/30 px-1.5 py-0.5 rounded-lg text-[9px] sm:text-[10px] font-black text-[#362415]" title="Jumlah Pengunjung">
+                                        <svg class="w-3 h-3 text-[#634C3C]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                        <span>{{ Number(item.views_count || 0).toLocaleString('id-ID') }}</span>
+                                    </div>
+
+                                    <!-- Rating -->
+                                    <div class="flex items-center gap-0.5 bg-[#F9C22E]/30 border border-[#362415]/30 px-1.5 py-0.5 rounded-lg text-[9px] sm:text-[10px] font-black text-[#362415]" title="Rating Produk">
+                                        <svg class="w-3 h-3 text-amber-500 fill-amber-400" viewBox="0 0 24 24">
+                                            <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                                        </svg>
+                                        <span>{{ item.avg_rating || "0.0" }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+                </div>
             </section>
         </main>
     </div>
@@ -425,6 +733,7 @@ const copyLink = async () => {
 .status-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; border: 1px solid #111827; }
 .category-chip { background: #ffedd5; color: #9a3412; }
 
+/* Main Image & Slider Controls */
 .main-image-wrap {
     height: 380px; position: relative; display: flex; align-items: center; justify-content: center;
     overflow: hidden; border: 3px solid #111827; border-radius: 18px; background: #e7e5e4;
@@ -437,12 +746,37 @@ const copyLink = async () => {
     position: relative; z-index: 1; width: 100%; height: 100%; object-fit: cover;
     transition: transform 0.4s ease;
 }
-.main-image-wrap:hover .main-product-image { transform: scale(1.05); }
+.main-image-wrap:hover .main-product-image { transform: scale(1.03); }
 .image-sticker {
-    position: absolute; z-index: 2; left: 14px; bottom: 14px; padding: 0.5rem 0.7rem;
+    position: absolute; z-index: 5; left: 12px; top: 12px; padding: 0.45rem 0.65rem;
     background: #fbbf24; border: 2.5px solid #111827; border-radius: 10px;
-    font-size: 0.6rem; font-weight: 1000; transform: rotate(-4deg); box-shadow: 3px 3px 0 #111827;
+    font-size: 0.6rem; font-weight: 1000; transform: rotate(-3deg); box-shadow: 2.5px 2.5px 0 #111827;
 }
+
+/* Image Counter Badge Top-Right */
+.image-counter-badge {
+    position: absolute; top: 12px; right: 12px; z-index: 5;
+    background: rgba(17, 24, 39, 0.85); color: #fbbf24;
+    border: 2px solid #111827; border-radius: 8px;
+    padding: 4px 8px; font-size: 0.6rem; font-weight: 1000;
+    display: flex; align-items: center; gap: 5px;
+    box-shadow: 2px 2px 0 #111827; backdrop-filter: blur(4px);
+}
+.image-counter-badge svg { width: 12px; height: 12px; }
+
+/* Gallery Thumbnails Below Image */
+.gallery-thumbnails {
+    display: flex; gap: 8px; margin-top: 12px; overflow-x: auto; padding-bottom: 4px;
+}
+.thumb-item {
+    width: 60px; height: 60px; shrink: 0; flex-shrink: 0;
+    border: 2.5px solid #111827; border-radius: 10px; overflow: hidden;
+    background: #fff; cursor: pointer; opacity: 0.6; transition: all 0.2s ease;
+    padding: 0; box-shadow: 2px 2px 0 #111827;
+}
+.thumb-item img { width: 100%; height: 100%; object-fit: cover; }
+.thumb-item:hover { opacity: 0.9; }
+.thumb-active { opacity: 1; border-color: #ea580c; background: #ea580c; transform: translateY(-2px); box-shadow: 3px 3px 0 #111827; }
 
 /* Info Section Setup */
 .hero-info { padding: 26px; display: flex; flex-direction: column; gap: 12px; justify-content: center; }
@@ -456,27 +790,14 @@ const copyLink = async () => {
 
 .product-title { margin: 0; font-size: clamp(1.8rem, 3.2vw, 2.6rem); line-height: 1; font-weight: 1000; text-transform: uppercase; }
 
-/* Indikator Views Badge (Style Baru Neobrutalism) */
+/* Indikator Views Badge */
 .views-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 12px;
-    background: #fff;
-    border: 2px solid #111827;
-    border-radius: 10px;
-    font-size: 0.7rem;
-    font-weight: 800;
-    color: #362415;
-    box-shadow: 2.5px 2.5px 0 #111827;
-    width: fit-content;
+    display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px;
+    background: #fff; border: 2px solid #111827; border-radius: 10px;
+    font-size: 0.7rem; font-weight: 800; color: #362415;
+    box-shadow: 2.5px 2.5px 0 #111827; width: fit-content;
 }
-.views-badge svg {
-    width: 16px;
-    height: 16px;
-    color: #ea580c;
-    flex-shrink: 0;
-}
+.views-badge svg { width: 16px; height: 16px; color: #ea580c; flex-shrink: 0; }
 
 .price-box {
     display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem;
@@ -551,6 +872,75 @@ const copyLink = async () => {
 .empty-reviews .star-icon { font-size: 1.8rem; color: #f97316; line-height: 1; }
 .empty-reviews strong { display: block; margin-top: 4px; font-size: 0.75rem; text-transform: uppercase; color: #111827; }
 .empty-reviews span { font-size: 0.6rem; }
+
+/* --- CSS CARD CARA PEMESANAN --- */
+.how-to-order-card {
+    background: linear-gradient(135deg, #fffbeb 0%, #fff 100%);
+    border: 4px solid #111827;
+}
+.order-icon {
+    background: #f97316 !important; 
+    color: #111827 !important;    
+}
+.steps-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 14px;
+}
+.step-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px;
+    background: #fff;
+    border: 2px solid #111827;
+    border-radius: 10px;
+    box-shadow: 2.5px 2.5px 0 #111827;
+    transition: transform 0.15s ease;
+}
+.step-item:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 4px 4px 0 #111827;
+}
+.step-number {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    display: grid;
+    place-items: center;
+    background: #fbbf24;
+    border: 2px solid #111827;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 1000;
+    color: #111827;
+}
+.step-content h3 {
+    margin: 0 0 2px 0;
+    font-size: 0.72rem;
+    font-weight: 1000;
+    text-transform: uppercase;
+    color: #111827;
+}
+.step-content p {
+    margin: 0;
+    font-size: 0.65rem;
+    color: #57534e;
+    font-weight: 600;
+    line-height: 1.35;
+}
+.order-badge-footer {
+    margin-top: 12px;
+    padding: 7px 8px;
+    background: #ffedd5;
+    border: 2px solid #111827;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 0.58rem;
+    font-weight: 1000;
+    color: #c2410c;
+}
 
 /* Form Ulasan Side Panel */
 .content-side { position: sticky; top: 80px; }
@@ -656,7 +1046,7 @@ const copyLink = async () => {
     .image-topbar { flex-wrap: wrap; gap: 8px; }
     .category-list { display: flex; flex-wrap: wrap; gap: 4px; }
     .main-image-wrap { height: 260px; border-radius: 14px; }
-    .image-sticker { font-size: 0.52rem; padding: 0.35rem 0.5rem; left: 8px; bottom: 8px; }
+    .image-sticker { font-size: 0.52rem; padding: 0.35rem 0.5rem; left: 8px; top: 8px; }
     .hero-info { padding: 18px 14px; gap: 14px; }
     .product-title { font-size: 1.5rem; line-height: 1.1; }
     .price { font-size: 1.6rem; }

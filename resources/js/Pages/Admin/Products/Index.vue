@@ -49,13 +49,6 @@ const getImageUrl = (imagePath) => {
                         <h1 class="text-lg sm:text-2xl font-black uppercase tracking-tight text-gray-900">Moderasi Produk</h1>
                         <p class="text-[10px] sm:text-xs font-bold text-gray-500 uppercase mt-0.5 sm:mt-1">Pantau & Kelola Seluruh Produk Katalog SiswaMart</p>
                     </div>
-                    <Link :href="route('dashboard')" class="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 bg-amber-400 hover:bg-amber-300 border-2 border-gray-900 text-gray-900 px-3.5 py-2 rounded-xl text-[11px] sm:text-xs font-black uppercase tracking-wider shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] active:scale-95 transition">
-                        <!-- SVG Arrow Left -->
-                        <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M19 12H5M12 19l-7-7 7-7"/>
-                        </svg>
-                        Kembali ke Dashboard
-                    </Link>
                 </div>
 
                 <!-- Filter & Search Input -->

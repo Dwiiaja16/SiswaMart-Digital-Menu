@@ -1,6 +1,6 @@
 <script setup>
 import { Head, Link, router } from "@inertiajs/vue3";
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onUnmounted, watch, computed } from "vue";
 
 const props = defineProps({
     products: Array,
@@ -8,7 +8,7 @@ const props = defineProps({
     filters: Object,
 });
 
-// Otomatis refresh data produk ketika kembali ke Beranda/Dashboard
+// Refresh data produk ketika kembali ke Beranda/Dashboard
 onMounted(() => {
     router.reload({ only: ["products"] });
 });
@@ -20,13 +20,85 @@ const toggleMobileMenu = () => {
     mobileMenuOpen.value = !mobileMenuOpen.value;
 };
 
+// --- LOGIKA LIVE SEARCH DROPDOWN ---
+const showDropdown = ref(false);
+
+const closeDropdown = () => {
+    showDropdown.value = false;
+};
+
+// Filter produk real-time saat mengetik
+const filteredProducts = computed(() => {
+    const query = search.value.trim().toLowerCase();
+    if (!query) return [];
+    return (props.products || []).filter((product) =>
+        product.name.toLowerCase().includes(query)
+    ).slice(0, 5);
+});
+
+// Reset saat input dibersihkan
+watch(search, (newValue) => {
+    if (newValue.trim() === "") {
+        showDropdown.value = false;
+        router.get(
+            route("catalog.index"),
+            {},
+            { preserveState: true, preserveScroll: true }
+        );
+    } else {
+        showDropdown.value = true;
+    }
+});
+
 const handleSearch = () => {
+    showDropdown.value = false;
     if (search.value.trim()) {
-        router.get(route("catalog.categories"), { search: search.value.trim() });
+        router.get(route("catalog.index"), { search: search.value.trim() });
     } else {
         router.get(route("catalog.index"));
     }
 };
+
+const clearSearch = () => {
+    search.value = "";
+    showDropdown.value = false;
+};
+
+// --- LOGIKA AUTO-SLIDE GAMBAR PRODUK ---
+const activeSlides = ref({});
+let autoSlideInterval = null;
+
+const getProductImages = (product) => {
+    if (!product) return [];
+    if (product.images && product.images.length > 0) {
+        return product.images.map((img) => img.image_path);
+    }
+    return product.image ? [product.image] : [];
+};
+
+const getSlideIndex = (productId) => {
+    return activeSlides.value[productId] || 0;
+};
+
+const getImageUrl = (imagePath) => {
+    if (!imagePath) return '';
+    if (imagePath.startsWith('http')) return imagePath;
+    return imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
+};
+
+// FORMAT WA ADMIN UNTUK PENDAFTARAN SELLER BARU
+const adminWA = "6285888013315"; // nomor WhatsApp Admin SiswaMart
+const waRegisterUrl = computed(() => {
+    const text = encodeURIComponent(
+        "Halo Admin SiswaMart! Saya siswa SMKN 11 Bandung dan berminat untuk mendaftarkan Toko/Usaha saya di SiswaMart.\n\n" +
+        "Mohon info persyaratannya, terima kasih!"
+    );
+    return `https://wa.me/${adminWA}?text=${text}`;
+});
+
+onUnmounted(() => {
+    if (autoSlideInterval) clearInterval(autoSlideInterval);
+});
 </script>
 
 <template>
@@ -144,9 +216,9 @@ const handleSearch = () => {
             </transition>
         </header>
 
-        <!-- HERO SECTION (RESPONSIF MOBILE & DESKTOP) -->
-        <section class="relative pt-6 sm:pt-16 pb-10 sm:pb-16 px-4 sm:px-6 lg:px-8 flex flex-col items-center justify-center text-center">
-            <div class="relative z-10 max-w-4xl mx-auto space-y-4 sm:space-y-6 flex flex-col items-center w-full">
+        <!-- HERO SECTION DENGAN SEARCH Z-INDEX TINGGI -->
+        <section class="relative z-30 pt-6 sm:pt-16 pb-10 sm:pb-16 px-4 sm:px-6 lg:px-8 flex flex-col items-center justify-center text-center">
+            <div class="relative z-30 max-w-4xl mx-auto space-y-4 sm:space-y-6 flex flex-col items-center w-full">
                 <!-- BADGE STIKER -->
                 <div class="inline-flex items-center gap-1.5 sm:gap-2 bg-[#F9C22E] border-2 border-[#362415] text-[#362415] px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest rotate-[-2deg] shadow-[2px_2px_0px_#362415]">
                     <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#362415]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -166,9 +238,14 @@ const handleSearch = () => {
                     Pesan makanan, minuman dingin, dan karya kreatif langsung dari siswa SMKN 11 Bandung. Enak, praktis, dan dukung jiwa wirausaha!
                 </p>
 
-                <!-- SEARCH CAPSULE -->
-                <div class="w-full max-w-xl pt-1 sm:pt-2 px-1">
-                    <div class="flex items-center bg-[#FCFAF5] border-2 border-[#362415] rounded-full p-1 sm:p-1.5 shadow-[3px_3px_0px_#362415] focus-within:border-[#F25C05] transition-all">
+                <!-- SEARCH CAPSULE DENGAN LIVE DROPDOWN HIGH Z-INDEX (Z-100) -->
+                <div class="w-full max-w-xl pt-1 sm:pt-2 px-1 relative z-[100]">
+                    
+                    <!-- BACKDROP UNTUK MENUTUP DROPDOWN SAAT KLIK DILUAR -->
+                    <div v-if="showDropdown" @click="closeDropdown" class="fixed inset-0 z-10 bg-black/10 backdrop-blur-[1px]"></div>
+
+                    <!-- INPUT SEARCH CONTAINER -->
+                    <div class="relative z-20 flex items-center bg-[#FCFAF5] border-3 border-[#362415] rounded-full p-1 sm:p-1.5 shadow-[4px_4px_0px_#362415] focus-within:border-[#F25C05] transition-all">
                         <div class="pl-3 sm:pl-4 text-[#362415]">
                             <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -177,17 +254,85 @@ const handleSearch = () => {
                         <input
                             v-model="search"
                             @keyup.enter="handleSearch"
+                            @focus="showDropdown = search.trim().length > 0"
                             type="text"
                             placeholder="Cari jajanan kesukaanmu..."
                             class="w-full text-[#362415] font-bold border-none focus:ring-0 px-2 sm:px-4 text-xs sm:text-base bg-transparent placeholder-[#362415]/40"
                         />
+
+                        <!-- Tombol Hapus / Silang (X) -->
+                        <button
+                            v-if="search"
+                            @click="clearSearch"
+                            type="button"
+                            class="mr-2 text-stone-400 hover:text-[#362415] font-black text-xs p-1 rounded-full hover:bg-stone-200 transition"
+                        >
+                            ✕
+                        </button>
+
                         <button
                             @click="handleSearch"
-                            class="bg-[#362415] hover:bg-[#F25C05] text-[#F4F0E6] px-4 sm:px-8 py-2.5 sm:py-3.5 rounded-full font-black text-[11px] sm:text-xs uppercase tracking-wider transition-colors shrink-0"
+                            class="bg-[#362415] hover:bg-[#F25C05] text-[#F4F0E6] px-5 sm:px-8 py-2.5 sm:py-3.5 rounded-full font-black text-[11px] sm:text-xs uppercase tracking-wider transition-colors shrink-0 shadow-[2px_2px_0px_#F25C05]"
                         >
                             Cari
                         </button>
                     </div>
+
+                    <!-- DROPDOWN REKOMENDASI PENCARIAN -->
+                    <div
+                        v-if="showDropdown && filteredProducts.length > 0"
+                        class="absolute left-1 right-1 top-full mt-2 bg-[#FCFAF5] border-3 border-[#362415] rounded-3xl shadow-[8px_8px_0px_#362415] z-30 overflow-hidden text-left divide-y-2 divide-[#362415]/15"
+                    >
+                        <div class="p-3.5 bg-white">
+                            <span class="text-[10px] font-black uppercase tracking-widest text-stone-400 px-2 block mb-2">
+                                Rekomendasi Menu
+                            </span>
+                            <div class="space-y-1.5">
+                                <Link
+                                    v-for="product in filteredProducts"
+                                    :key="product.id"
+                                    :href="route('products.show', product.id)"
+                                    @click="closeDropdown"
+                                    class="flex items-center justify-between p-2.5 rounded-2xl border-2 border-transparent hover:border-[#362415] hover:bg-[#F4F0E6]/50 transition-all group"
+                                >
+                                    <div class="flex items-center gap-3 min-w-0">
+                                        <div class="w-11 h-11 rounded-xl bg-stone-100 border-2 border-[#362415] overflow-hidden shrink-0 shadow-[2px_2px_0px_#362415]">
+                                            <img
+                                                v-if="getProductImages(product).length > 0"
+                                                :src="getImageUrl(getProductImages(product)[0])"
+                                                class="w-full h-full object-cover"
+                                            />
+                                            <div v-else class="w-full h-full flex items-center justify-center text-[8px] font-extrabold text-stone-400">
+                                                NO FOTO
+                                            </div>
+                                        </div>
+                                        <div class="min-w-0">
+                                            <h4 class="font-black text-xs sm:text-sm text-[#362415] group-hover:text-[#F25C05] transition-colors truncate">
+                                                {{ product.name }}
+                                            </h4>
+                                            <span class="text-[10px] text-[#634C3C] font-bold block truncate">
+                                                {{ product.shop?.name || 'Lapak Siswa' }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <span class="text-xs sm:text-sm font-black text-[#F25C05] shrink-0 ml-2 bg-[#F25C05]/10 px-2.5 py-1 rounded-lg border border-[#F25C05]/20">
+                                        Rp {{ Number(product.price).toLocaleString("id-ID") }}
+                                    </span>
+                                </Link>
+                            </div>
+                        </div>
+
+                        <div class="bg-[#F9C22E] p-3 text-center border-t-2 border-[#362415]">
+                            <button
+                                @click="handleSearch"
+                                type="button"
+                                class="w-full py-2.5 bg-[#362415] hover:bg-[#F25C05] text-[#F4F0E6] rounded-2xl font-black text-xs uppercase tracking-wider transition-colors shadow-[3px_3px_0px_rgba(0,0,0,0.2)] cursor-pointer flex items-center justify-center"
+                            >
+                                Lihat Semua Hasil
+                            </button>
+                        </div>
+                    </div>
+
                 </div>
 
                 <!-- VALUE PILLS TICKER -->
@@ -200,7 +345,7 @@ const handleSearch = () => {
                     </div>
                     <div class="flex items-center gap-1.5 bg-white border border-[#362415] sm:border-2 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full shadow-sm">
                         <svg class="w-3.5 h-3.5 text-[#F25C05]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 v5m-4 0h4" />
                         </svg>
                         <span>COD di Sekolah</span>
                     </div>
@@ -240,7 +385,7 @@ const handleSearch = () => {
                     </Link>
                 </div>
 
-                <!-- BENTO SHORTCUTS GRID (2 KOLOM DI MOBILE) -->
+                <!-- BENTO SHORTCUTS GRID -->
                 <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4">
                     <Link
                         v-for="cat in (categories?.slice(0, 4) || [])"
@@ -291,7 +436,7 @@ const handleSearch = () => {
                     </Link>
                 </div>
 
-                <!-- GRID PRODUK (2 KOLOM DI MOBILE, 3-4 KOLOM DI DESKTOP) -->
+                <!-- GRID PRODUK -->
                 <div
                     v-if="products && products.length > 0"
                     class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5"
@@ -301,18 +446,27 @@ const handleSearch = () => {
                         :key="product.id"
                         class="bg-white rounded-2xl border-2 border-[#362415] shadow-[2px_2px_0px_#362415] sm:shadow-[5px_5px_0px_#362415] hover:-translate-y-0.5 transition-all duration-200 flex flex-col group overflow-hidden"
                     >
-                        <!-- AREA GAMBAR RASIO 4/5 DENGAN LAZY LOADING -->
                         <Link
                             :href="route('products.show', product.id)"
                             class="block relative w-full aspect-[4/5] bg-stone-100 overflow-hidden"
                         >
+                            <template v-if="getProductImages(product).length > 1">
+                                <img
+                                    :src="getImageUrl(getProductImages(product)[getSlideIndex(product.id)])"
+                                    :alt="product.name"
+                                    loading="lazy"
+                                    class="w-full h-full object-cover group-hover:scale-105 transition-all duration-500 ease-out"
+                                />
+                            </template>
+
                             <img
-                                v-if="product.image"
-                                :src="product.image"
+                                v-else-if="getProductImages(product).length === 1"
+                                :src="getImageUrl(getProductImages(product)[0])"
                                 :alt="product.name"
                                 loading="lazy"
                                 class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ease-out"
                             />
+
                             <div
                                 v-else
                                 class="w-full h-full flex flex-col items-center justify-center text-stone-400 font-bold text-[9px] sm:text-[10px] uppercase gap-1 bg-[#fffaf3]"
@@ -323,7 +477,6 @@ const handleSearch = () => {
                                 Tanpa Foto
                             </div>
 
-                            <!-- BADGE NAMA TOKO (MIRING ORANYE) -->
                             <div
                                 class="absolute bottom-0 left-0 bg-[#ea580c]/95 text-white pl-2 sm:pl-3 pr-4 sm:pr-6 py-1 flex items-center gap-1 z-10 shadow-sm"
                                 style="clip-path: polygon(0 0, 100% 0, 84% 100%, 0% 100%);"
@@ -333,7 +486,6 @@ const handleSearch = () => {
                                 </span>
                             </div>
 
-                            <!-- BADGE STATUS BUKA/TUTUP -->
                             <div class="absolute top-2 right-2 z-10">
                                 <span
                                     :class="product.shop?.is_open ? 'bg-emerald-400 text-stone-900' : 'bg-rose-400 text-stone-900'"
@@ -348,16 +500,13 @@ const handleSearch = () => {
                             </div>
                         </Link>
 
-                        <!-- INFORMASI PRODUK RINGKAS -->
                         <div class="p-2.5 sm:p-3.5 flex flex-col flex-1 bg-white">
-                            <!-- Judul Produk -->
                             <Link :href="route('products.show', product.id)" class="block mb-1.5 sm:mb-2">
                                 <h3 class="font-black text-[#362415] text-xs sm:text-base leading-snug group-hover:text-[#F25C05] transition-colors line-clamp-2">
                                     {{ product.name }}
                                 </h3>
                             </Link>
 
-                            <!-- Kategori & Status Stok -->
                             <div class="flex items-center gap-1 text-[10px] sm:text-[11px] text-[#634C3C] font-semibold mb-2 sm:mb-3">
                                 <span v-for="cat in product.categories?.slice(0, 1)" :key="cat.id" class="truncate">{{ cat.name }}</span>
                                 <span v-if="product.categories?.length && product.stock_status" class="text-stone-300">•</span>
@@ -370,14 +519,12 @@ const handleSearch = () => {
                                 </span>
                             </div>
 
-                            <!-- Harga, Total Views & Rating Footer -->
                             <div class="mt-auto pt-2 sm:pt-3 border-t border-[#362415]/10 flex items-center justify-between gap-1">
                                 <span class="text-[#F25C05] font-black text-xs sm:text-base tracking-tight truncate">
                                     Rp {{ Number(product.price).toLocaleString("id-ID") }}
                                 </span>
 
                                 <div class="flex items-center gap-1 shrink-0">
-                                    <!-- Badge Total Views (Baru) -->
                                     <div class="flex items-center gap-0.5 bg-stone-100 border border-stone-300 px-1.5 py-0.5 rounded-lg text-[9px] sm:text-[10px] font-extrabold text-[#362415]" title="Total Dilihat">
                                         <svg class="w-3 h-3 text-stone-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -386,7 +533,6 @@ const handleSearch = () => {
                                         <span>{{ Number(product.views_count || 0).toLocaleString("id-ID") }}</span>
                                     </div>
 
-                                    <!-- Badge Rating -->
                                     <div class="flex items-center gap-0.5 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-lg text-[9px] sm:text-[10px] font-black text-[#362415]">
                                         <svg class="w-3 h-3 text-amber-500 fill-amber-400" viewBox="0 0 24 24">
                                             <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
@@ -418,7 +564,7 @@ const handleSearch = () => {
                 </div>
             </section>
 
-            <!-- SECTION 3: 3 VALUE CARDS (KENAPA JAJAN DI SISWAMART) -->
+            <!-- SECTION 3: 3 VALUE CARDS -->
             <section class="bg-[#FCFAF5] border-2 border-[#362415] rounded-3xl sm:rounded-[36px] p-5 sm:p-10 shadow-[4px_4px_0px_#362415] sm:shadow-[8px_8px_0px_#362415] space-y-6">
                 <div class="text-center space-y-1.5 max-w-md mx-auto">
                     <span class="inline-block bg-[#F25C05] text-[#FCFAF5] px-3 py-0.5 rounded-full text-[10px] sm:text-[11px] font-black uppercase tracking-widest">
@@ -466,6 +612,35 @@ const handleSearch = () => {
                         </p>
                     </div>
                 </div>
+            </section>
+
+            <!-- BANNER AJAK BERJUALAN (CALL TO ACTION REGISTRASI SELLER VIA WA) -->
+            <section class="bg-[#F9C22E] border-3 border-[#362415] rounded-3xl sm:rounded-[36px] p-6 sm:p-10 shadow-[6px_6px_0px_#362415] sm:shadow-[8px_8px_0px_#362415] flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+                <div class="space-y-2 text-center md:text-left max-w-xl">
+                    <div class="inline-flex items-center gap-1.5 bg-[#362415] text-[#F4F0E6] px-3 py-1 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest shadow-sm">
+                        <svg class="w-3.5 h-3.5 text-[#F9C22E]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                        <span>KHUSUS SISWA SMKN 11 BANDUNG</span>
+                    </div>
+                    <h3 class="text-2xl sm:text-4xl font-black text-[#362415] tracking-tight leading-tight">
+                        Punya Produk Kreatif & Ingin Berjualan di SiswaMart?
+                    </h3>
+                    <p class="text-[#362415]/80 text-xs sm:text-sm font-bold leading-relaxed">
+                        Mulai bisnis sekolahmu sekarang! Daftarkan lapak usaha kamu secara cepat dengan langsung menghubungi Admin Sekolah via WhatsApp.
+                    </p>
+                </div>
+
+                <a 
+                    :href="waRegisterUrl" 
+                    target="_blank"
+                    class="w-full md:w-auto px-6 sm:px-8 py-3.5 sm:py-4 bg-[#25D366] hover:bg-[#20bd5a] text-white border-2 border-[#362415] font-black text-xs sm:text-sm uppercase tracking-wider rounded-2xl shadow-[4px_4px_0px_#362415] active:scale-95 transition-all shrink-0 flex items-center justify-center gap-2.5"
+                >
+                    <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                        <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
+                    </svg>
+                    <span>Daftar Penjual via WA</span>
+                </a>
             </section>
 
             <!-- SECTION 4: CALL TO ACTION BANNER -->
@@ -518,7 +693,7 @@ const handleSearch = () => {
 @keyframes blob-spin {
     0% { transform: rotate(0deg) scale(1); border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; }
     50% { transform: rotate(180deg) scale(1.1); border-radius: 60% 40% 30% 70% / 50% 60% 40% 50%; }
-    100% { transform: rotate(360deg) scale(1); border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; }
+    100% { transform: rotate(0deg) scale(1); border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; }
 }
 
 @keyframes blob-spin-reverse {

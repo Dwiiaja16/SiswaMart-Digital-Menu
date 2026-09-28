@@ -11,6 +11,9 @@ use Inertia\Inertia;
 
 class RecapController extends Controller
 {
+    /**
+     * Tampilkan Halaman Rekapitulasi & Status Toko
+     */
     public function index()
     {
         $sevenDaysAgo = Carbon::now()->subDays(7);
@@ -23,14 +26,12 @@ class RecapController extends Controller
             ])
             ->get()
             ->map(function ($shop) use ($sevenDaysAgo) {
-                // Tandai pasif jika: tidak ada produk baru minggu ini DAN
-                // tidak pernah toggle is_open dalam 7 hari terakhir
                 $lastChange = $shop->last_status_change_at;
                 $noRecentStatusChange = !$lastChange || $lastChange->lt($sevenDaysAgo);
-                $noNewProducts = $shop->new_products_count === 0;
+                $noNewProducts = ($shop->new_products_count ?? 0) === 0;
 
                 $activityBadge = 'active';
-                if ($shop->status === 'suspended') {
+                if ($shop->status === 'suspended' || ($shop->user && $shop->user->is_suspended)) {
                     $activityBadge = 'suspended';
                 } elseif ($noRecentStatusChange && $noNewProducts) {
                     $activityBadge = 'passive';
@@ -39,12 +40,12 @@ class RecapController extends Controller
                 return [
                     'id'                    => $shop->id,
                     'name'                  => $shop->name,
-                    'status'                => $shop->status,
+                    'status'                => $shop->status ?? ($shop->is_open ? 'active' : 'suspended'),
                     'is_open'               => (bool) $shop->is_open,
                     'last_status_change_at' => $shop->last_status_change_at
                         ? $shop->last_status_change_at->diffForHumans()
                         : 'Belum pernah',
-                    'new_products_count'    => $shop->new_products_count,
+                    'new_products_count'    => (int) ($shop->new_products_count ?? 0),
                     'activity_badge'        => $activityBadge,
                     'owner'                 => [
                         'id'       => $shop->user?->id,
@@ -54,11 +55,11 @@ class RecapController extends Controller
                 ];
             });
 
-        // Summary stats
+        // Ringkasan Statistik
         $stats = [
-            'total_active'    => $shops->where('activity_badge', 'active')->count(),
-            'total_passive'   => $shops->where('activity_badge', 'passive')->count(),
-            'total_suspended' => $shops->where('status', 'suspended')->count(),
+            'total_active'      => $shops->where('activity_badge', 'active')->count(),
+            'total_passive'     => $shops->where('activity_badge', 'passive')->count(),
+            'total_suspended'   => $shops->where('activity_badge', 'suspended')->count(),
             'new_products_week' => Product::where('created_at', '>=', $sevenDaysAgo)->count(),
         ];
 
@@ -68,18 +69,28 @@ class RecapController extends Controller
         ]);
     }
 
+    /**
+     * Toggle status suspend toko oleh Admin
+     */
     public function toggleSuspend(Shop $shop)
     {
-        $newStatus = $shop->status === 'active' ? 'suspended' : 'active';
+        $newStatus = ($shop->status === 'active' || empty($shop->status)) ? 'suspended' : 'active';
+        $isSuspended = ($newStatus === 'suspended');
 
         $shop->update([
             'status'                => $newStatus,
             'last_status_change_at' => now(),
-            // Jika di-suspend, tutup lapak sekaligus
-            'is_open'               => $newStatus === 'active' ? $shop->is_open : false,
+            'is_open'               => $isSuspended ? false : $shop->is_open,
         ]);
 
-        $label = $newStatus === 'suspended' ? 'dinonaktifkan (Suspend)' : 'diaktifkan kembali';
+        // Sinkronisasi status suspend ke User pemilik lapak
+        if ($shop->user) {
+            $shop->user->update([
+                'is_suspended' => $isSuspended,
+            ]);
+        }
+
+        $label = $isSuspended ? 'dinonaktifkan (Suspend)' : 'diaktifkan kembali';
 
         return redirect()->back()->with('success', "Lapak \"{$shop->name}\" berhasil {$label}.");
     }

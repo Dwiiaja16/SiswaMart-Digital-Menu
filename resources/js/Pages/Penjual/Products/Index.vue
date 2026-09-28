@@ -1,6 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, useForm, usePage } from '@inertiajs/vue3';
+import { Head, useForm, usePage, router } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
 const props = defineProps({
@@ -30,15 +30,20 @@ const toggleCategory = (targetForm, categoryId) => {
     }
 };
 
-// Form Tambah Produk
+// --- FORM TAMBAH PRODUK ---
 const createForm = useForm({
-    category_ids: [], // Menggunakan Array untuk multi-select
+    category_ids: [],
     name: '',
     description: '',
     price: '',
     stock_status: 'ready',
-    image: null,
+    image: null,    // Cover Utama
+    images: [],      // Galeri Tambahan (Array File)
 });
+
+const handleCreateGalleryChange = (e) => {
+    createForm.images = Array.from(e.target.files);
+};
 
 const submitCreate = () => {
     if (isSuspended.value) return;
@@ -47,32 +52,38 @@ const submitCreate = () => {
             createForm.reset();
             createForm.category_ids = [];
             createForm.stock_status = 'ready';
+            createForm.images = [];
         },
     });
 };
 
-// Modal & Form Edit Produk
+// --- MODAL & FORM EDIT PRODUK ---
 const editingProduct = ref(null);
 const editForm = useForm({
-    _method: 'POST',
-    category_ids: [], // Menggunakan Array untuk multi-select
+    _method: 'PUT',  // Spoofing PUT agar Multipart Form-Data terbaca oleh Laravel
+    category_ids: [],
     name: '',
     description: '',
     price: '',
     stock_status: 'ready',
-    image: null,
+    image: null,    // Cover Utama
+    images: [],      // Galeri Tambahan baru yang diunggah
 });
+
+const handleEditGalleryChange = (e) => {
+    editForm.images = Array.from(e.target.files);
+};
 
 const openEditModal = (product) => {
     if (isSuspended.value) return;
     editingProduct.value = product;
-    // Ambil array ID dari relasi categories yang dikirim dari controller
     editForm.category_ids = product.categories ? product.categories.map(c => c.id) : [];
     editForm.name = product.name;
     editForm.description = product.description || '';
     editForm.price = product.price;
     editForm.stock_status = product.stock_status;
     editForm.image = null;
+    editForm.images = [];
 };
 
 const closeEditModal = () => {
@@ -84,6 +95,21 @@ const submitUpdate = () => {
     editForm.post(route('products.update', editingProduct.value.id), {
         onSuccess: () => closeEditModal(),
     });
+};
+
+// Hapus Foto Galeri Tersimpan saat Edit
+const deleteGalleryImage = (imageId) => {
+    if (isSuspended.value) return;
+    if (confirm('Yakin ingin menghapus foto galeri ini?')) {
+        router.delete(route('product-images.destroy', imageId), {
+            preserveScroll: true,
+            onSuccess: () => {
+                if (editingProduct.value && editingProduct.value.images) {
+                    editingProduct.value.images = editingProduct.value.images.filter(img => img.id !== imageId);
+                }
+            }
+        });
+    }
 };
 
 const deleteProduct = (id) => {
@@ -104,28 +130,25 @@ const toggleStatus = () => {
 <template>
     <Head title="Kelola Menu Produk - SiswaMart" />
 
-    <div class="min-h-screen bg-stone-100 text-gray-900 font-sans pb-16 selection:bg-orange-500 selection:text-white">
+    <!-- BUNGKUS DENGAN AUTHENTICATED LAYOUT AGAR SIDEBAR & NAVBAR MUNCUL -->
+    <AuthenticatedLayout>
         
-        <!-- Header Page -->
-        <header class="bg-white border-b-4 border-gray-900 px-6 py-4 sticky top-0 z-40">
-            <div class="max-w-7xl mx-auto flex justify-between items-center">
-                <div class="flex items-center gap-3">
-                    <h2 class="text-2xl font-black uppercase tracking-tighter text-gray-900">
-                        Kelola Menu <span class="text-orange-500">Produk</span>
-                    </h2>
-                    <span class="bg-amber-100 border-2 border-gray-900 text-gray-900 text-[10px] font-black uppercase px-2.5 py-1 rounded-md shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]">
-                        Wirausaha Siswa
-                    </span>
-                </div>
-            </div>
-        </header>
+        <div class="space-y-6 sm:space-y-8 pb-16">
 
-        <main class="max-w-7xl mx-auto px-6 mt-8 space-y-8">
+            <!-- Judul Halaman -->
+            <div class="flex items-center gap-3">
+                <h2 class="text-xl sm:text-2xl font-black uppercase tracking-tighter text-gray-900">
+                    Kelola Menu <span class="text-orange-500">Produk</span>
+                </h2>
+                <span class="bg-amber-100 border-2 border-gray-900 text-gray-900 text-[10px] font-black uppercase px-2.5 py-1 rounded-md shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]">
+                    Wirausaha Siswa
+                </span>
+            </div>
             
             <!-- Banner Warning Suspend -->
             <div 
                 v-if="isSuspended" 
-                class="bg-rose-100 border-4 border-gray-900 rounded-3xl p-6 shadow-[6px_6px_0px_0px_rgba(17,24,39,1)] flex items-start gap-4"
+                class="bg-rose-100 border-3 sm:border-4 border-gray-900 rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-[4px_4px_0px_0px_rgba(17,24,39,1)] flex items-start gap-4"
             >
                 <div class="w-10 h-10 bg-rose-400 border-2 border-gray-900 rounded-xl flex items-center justify-center shrink-0">
                     <svg class="w-6 h-6 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
@@ -141,9 +164,9 @@ const toggleStatus = () => {
             </div>
 
             <!-- Card Status Operasional Lapak -->
-            <div class="bg-amber-400 border-4 border-gray-900 rounded-3xl p-6 sm:p-8 shadow-[6px_6px_0px_0px_rgba(17,24,39,1)] flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div class="bg-amber-400 border-3 sm:border-4 border-gray-900 rounded-2xl sm:rounded-3xl p-5 sm:p-8 shadow-[4px_4px_0px_0px_rgba(17,24,39,1)] sm:shadow-[6px_6px_0px_0px_rgba(17,24,39,1)] flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div>
-                    <span class="text-[10px] font-black uppercase tracking-widest bg-gray-900 text-white px-2.5 py-1 rounded-md">
+                    <span class="text-[9px] sm:text-[10px] font-black uppercase tracking-widest bg-gray-900 text-white px-2.5 py-1 rounded-md shadow-[1px_1px_0px_0px_rgba(17,24,39,1)]">
                         Status Lapak Wirausaha
                     </span>
                     <h1 class="text-2xl sm:text-3xl font-black uppercase tracking-tight text-gray-900 mt-2">
@@ -158,7 +181,7 @@ const toggleStatus = () => {
                     @click="toggleStatus"
                     :disabled="isSuspended"
                     :class="isSuspended ? 'bg-gray-300 border-gray-500 text-gray-500 cursor-not-allowed' : (isOpen ? 'bg-emerald-400 hover:bg-emerald-300' : 'bg-rose-400 hover:bg-rose-300')"
-                    class="px-6 py-3.5 border-3 border-gray-900 text-gray-900 font-black text-xs uppercase tracking-widest rounded-2xl shadow-[4px_4px_0px_0px_rgba(17,24,39,1)] active:scale-95 transition flex items-center gap-2"
+                    class="px-6 py-3.5 border-3 border-gray-900 text-gray-900 font-black text-xs uppercase tracking-widest rounded-2xl shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] active:scale-95 transition flex items-center gap-2 shrink-0"
                 >
                     <span class="w-3 h-3 rounded-full border border-gray-900" :class="isOpen ? 'bg-emerald-900 animate-pulse' : 'bg-rose-900'"></span>
                     Status Lapak: {{ isSuspended ? 'DIKUNCI' : (isOpen ? 'BUKA' : 'TUTUP') }}
@@ -166,7 +189,7 @@ const toggleStatus = () => {
             </div>
 
             <!-- Form Tambah Produk -->
-            <div class="bg-white border-4 border-gray-900 rounded-3xl p-6 sm:p-8 shadow-[6px_6px_0px_0px_rgba(17,24,39,1)] space-y-6" :class="{ 'opacity-60': isSuspended }">
+            <div class="bg-white border-3 sm:border-4 border-gray-900 rounded-2xl sm:rounded-3xl p-5 sm:p-8 shadow-[4px_4px_0px_0px_rgba(17,24,39,1)] sm:shadow-[6px_6px_0px_0px_rgba(17,24,39,1)] space-y-6" :class="{ 'opacity-60': isSuspended }">
                 <div class="flex items-center gap-3 border-b-2 border-gray-100 pb-4">
                     <div class="w-10 h-10 bg-orange-400 border-2 border-gray-900 rounded-xl flex items-center justify-center shrink-0 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]">
                         <svg class="w-5 h-5 text-gray-900" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -174,7 +197,7 @@ const toggleStatus = () => {
                         </svg>
                     </div>
                     <div>
-                        <h3 class="text-lg font-black uppercase tracking-tight text-gray-900">Tambah Produk Baru</h3>
+                        <h3 class="text-base sm:text-lg font-black uppercase tracking-tight text-gray-900">Tambah Produk Baru</h3>
                         <p class="text-xs font-bold text-gray-400 uppercase">Isi formulir untuk memasukkan jajanan baru ke etalase</p>
                     </div>
                 </div>
@@ -210,7 +233,7 @@ const toggleStatus = () => {
                                 @click="toggleCategory(createForm, cat.id)"
                                 :class="[
                                     createForm.category_ids.includes(cat.id) 
-                                        ? 'bg-amber-400 border-gray-900 shadow-[4px_4px_0px_0px_rgba(17,24,39,1)] translate-x-[-2px] translate-y-[-2px]' 
+                                        ? 'bg-amber-400 border-gray-900 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] translate-x-[-2px] translate-y-[-2px]' 
                                         : 'bg-stone-50 border-gray-900 hover:bg-stone-100 opacity-80',
                                     isSuspended ? 'cursor-not-allowed' : 'cursor-pointer'
                                 ]"
@@ -241,12 +264,12 @@ const toggleStatus = () => {
                             Status Stok Produk
                         </label>
                         
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                             <div
                                 @click="!isSuspended && (createForm.stock_status = 'ready')"
                                 :class="[
                                     createForm.stock_status === 'ready' 
-                                        ? 'bg-emerald-300 border-gray-900 shadow-[4px_4px_0px_0px_rgba(17,24,39,1)]' 
+                                        ? 'bg-emerald-300 border-gray-900 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)]' 
                                         : 'bg-stone-50 border-gray-900 opacity-50 hover:opacity-80',
                                     isSuspended ? 'cursor-not-allowed' : 'cursor-pointer'
                                 ]"
@@ -263,7 +286,7 @@ const toggleStatus = () => {
                                 @click="!isSuspended && (createForm.stock_status = 'pre_order')"
                                 :class="[
                                     createForm.stock_status === 'pre_order' 
-                                        ? 'bg-amber-300 border-gray-900 shadow-[4px_4px_0px_0px_rgba(17,24,39,1)]' 
+                                        ? 'bg-amber-300 border-gray-900 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)]' 
                                         : 'bg-stone-50 border-gray-900 opacity-50 hover:opacity-80',
                                     isSuspended ? 'cursor-not-allowed' : 'cursor-pointer'
                                 ]"
@@ -278,9 +301,40 @@ const toggleStatus = () => {
                         </div>
                     </div>
 
-                    <div>
-                        <label class="block text-xs font-black uppercase tracking-wider text-gray-700 mb-2">Foto Produk (Opsional)</label>
-                        <input @input="createForm.image = $event.target.files[0]" :disabled="isSuspended" type="file" accept="image/*" class="w-full text-xs font-bold text-gray-600 bg-stone-50 border-2 border-gray-900 rounded-xl p-2 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-2 file:border-gray-900 file:text-xs file:font-black file:bg-amber-400 hover:file:bg-amber-300 disabled:opacity-50" />
+                    <!-- UPLOAD FOTO UTAMA & TAMBAHAN -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-black uppercase tracking-wider text-gray-700 mb-2">
+                                Foto Utama Produk (Cover)
+                            </label>
+                            <input 
+                                @input="createForm.image = $event.target.files[0]" 
+                                :disabled="isSuspended" 
+                                type="file" 
+                                accept="image/*" 
+                                class="w-full text-xs font-bold text-gray-600 bg-stone-50 border-2 border-gray-900 rounded-xl p-2 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-2 file:border-gray-900 file:text-xs file:font-black file:bg-amber-400 hover:file:bg-amber-300 disabled:opacity-50" 
+                            />
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-black uppercase tracking-wider text-gray-700 mb-2 flex justify-between items-center">
+                                <span>Foto Tambahan / Lainnya</span>
+                                <span class="text-[10px] text-orange-600 font-bold bg-orange-100 border border-gray-900 px-1.5 py-0.5 rounded">
+                                    Bisa Pilih Banyak
+                                </span>
+                            </label>
+                            <input 
+                                @change="handleCreateGalleryChange" 
+                                multiple 
+                                :disabled="isSuspended" 
+                                type="file" 
+                                accept="image/*" 
+                                class="w-full text-xs font-bold text-gray-600 bg-stone-50 border-2 border-gray-900 rounded-xl p-2 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-2 file:border-gray-900 file:text-xs file:font-black file:bg-orange-400 hover:file:bg-orange-300 disabled:opacity-50" 
+                            />
+                            <p class="text-[10px] text-gray-500 font-bold mt-1">
+                                Tekan & tahan tombol Ctrl / Cmd untuk memilih beberapa foto sekaligus.
+                            </p>
+                        </div>
                     </div>
 
                     <div>
@@ -293,7 +347,7 @@ const toggleStatus = () => {
                             type="submit" 
                             :disabled="createForm.processing || isSuspended || createForm.category_ids.length === 0" 
                             :class="isSuspended || createForm.category_ids.length === 0 ? 'bg-gray-300 border-gray-400 text-gray-500 cursor-not-allowed' : 'bg-orange-500 hover:bg-orange-400 text-gray-900'"
-                            class="w-full sm:w-auto px-6 py-3.5 border-2 border-gray-900 rounded-xl font-black text-xs uppercase tracking-widest transition shadow-[4px_4px_0px_0px_rgba(17,24,39,1)] active:scale-95 flex items-center justify-center gap-2"
+                            class="w-full sm:w-auto px-6 py-3.5 border-2 border-gray-900 rounded-xl font-black text-xs uppercase tracking-widest transition shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] active:scale-95 flex items-center justify-center gap-2"
                         >
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
@@ -305,10 +359,10 @@ const toggleStatus = () => {
             </div>
 
             <!-- Tabel Daftar Produk -->
-            <div class="bg-white border-4 border-gray-900 rounded-3xl p-6 sm:p-8 shadow-[6px_6px_0px_0px_rgba(17,24,39,1)] space-y-6">
+            <div class="bg-white border-3 sm:border-4 border-gray-900 rounded-2xl sm:rounded-3xl p-5 sm:p-8 shadow-[4px_4px_0px_0px_rgba(17,24,39,1)] sm:shadow-[6px_6px_0px_0px_rgba(17,24,39,1)] space-y-6">
                 <div class="flex justify-between items-center border-b-2 border-gray-100 pb-4">
                     <div>
-                        <h3 class="text-lg font-black uppercase tracking-tight text-gray-900">Daftar Menu Saat Ini</h3>
+                        <h3 class="text-base sm:text-lg font-black uppercase tracking-tight text-gray-900">Daftar Menu Saat Ini</h3>
                         <p class="text-xs font-bold text-gray-400 uppercase">Kelola daftar menu jualan yang terdaftar di sistem</p>
                     </div>
                     <span class="bg-orange-500 text-gray-900 border-2 border-gray-900 px-3 py-1 rounded-xl text-xs font-black shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]">
@@ -317,7 +371,7 @@ const toggleStatus = () => {
                 </div>
 
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
+                    <table class="w-full text-left border-collapse min-w-[600px]">
                         <thead>
                             <tr class="border-b-2 border-gray-900 bg-stone-100 text-[10px] font-black uppercase tracking-wider text-gray-700">
                                 <th class="p-3.5 rounded-l-xl">Gambar</th>
@@ -331,16 +385,18 @@ const toggleStatus = () => {
                         <tbody class="divide-y-2 divide-gray-100">
                             <tr v-for="product in products" :key="product.id" class="hover:bg-stone-50/50 transition">
                                 <td class="py-3.5 px-3">
-                                    <div class="w-12 h-12 bg-white border-2 border-gray-900 rounded-xl overflow-hidden flex items-center justify-center shrink-0">
+                                    <div class="relative w-12 h-12 bg-white border-2 border-gray-900 rounded-xl overflow-hidden flex items-center justify-center shrink-0">
                                         <img v-if="product.image" :src="getImageUrl(product.image)" class="w-full h-full object-cover" />
                                         <svg v-else class="w-5 h-5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                         </svg>
+                                        <span v-if="product.images && product.images.length > 0" class="absolute bottom-0 right-0 bg-gray-900 text-amber-400 font-black text-[8px] px-1 rounded-tl-md">
+                                            +{{ product.images.length }}
+                                        </span>
                                     </div>
                                 </td>
                                 <td class="py-3.5 px-3 font-black text-xs uppercase text-gray-900">{{ product.name }}</td>
                                 
-                                <!-- MENAMPILKAN BANYAK KATEGORI (BADGE CHIPS) -->
                                 <td class="py-3.5 px-3">
                                     <div class="flex flex-wrap gap-1">
                                         <span 
@@ -362,7 +418,7 @@ const toggleStatus = () => {
                                             'bg-amber-100 text-amber-900': product.stock_status === 'pre_order',
                                             'bg-rose-100 text-rose-900': product.stock_status === 'out_of_stock'
                                         }" 
-                                        class="px-2.5 py-1 text-[9px] font-black uppercase rounded-lg border border-gray-900"
+                                        class="px-2.5 py-1 text-[9px] font-black uppercase rounded-lg border border-gray-900 shadow-[1px_1px_0px_0px_rgba(17,24,39,1)]"
                                     >
                                         {{ product.stock_status === 'ready' ? 'Ready' : (product.stock_status === 'pre_order' ? 'Pre-Order' : 'Habis') }}
                                     </span>
@@ -402,7 +458,7 @@ const toggleStatus = () => {
                 </div>
             </div>
 
-        </main>
+        </div>
 
         <!-- Modal Edit Produk Neo-Brutalism -->
         <div v-if="editingProduct" class="fixed inset-0 z-50 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center p-4">
@@ -478,9 +534,56 @@ const toggleStatus = () => {
                         </div>
                     </div>
 
-                    <div>
-                        <label class="block text-xs font-black uppercase tracking-wider text-gray-700 mb-2">Ganti Foto Produk (Opsional)</label>
-                        <input @input="editForm.image = $event.target.files[0]" type="file" accept="image/*" class="w-full text-xs font-bold text-gray-600 bg-stone-50 border-2 border-gray-900 rounded-xl p-2 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-2 file:border-gray-900 file:text-xs file:font-black file:bg-amber-400 hover:file:bg-amber-300" />
+                    <!-- UPLOAD FOTO UTAMA & TAMBAHAN BARU (MODAL EDIT) -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-black uppercase tracking-wider text-gray-700 mb-2">
+                                Ganti Foto Utama (Cover)
+                            </label>
+                            <input 
+                                @input="editForm.image = $event.target.files[0]" 
+                                type="file" 
+                                accept="image/*" 
+                                class="w-full text-xs font-bold text-gray-600 bg-stone-50 border-2 border-gray-900 rounded-xl p-2 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-2 file:border-gray-900 file:text-xs file:font-black file:bg-amber-400 hover:file:bg-amber-300" 
+                            />
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-black uppercase tracking-wider text-gray-700 mb-2">
+                                Tambah Foto Lainnya
+                            </label>
+                            <input 
+                                @change="handleEditGalleryChange" 
+                                multiple 
+                                type="file" 
+                                accept="image/*" 
+                                class="w-full text-xs font-bold text-gray-600 bg-stone-50 border-2 border-gray-900 rounded-xl p-2 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-2 file:border-gray-900 file:text-xs file:font-black file:bg-orange-400 hover:file:bg-orange-300" 
+                            />
+                        </div>
+                    </div>
+
+                    <!-- PREVIEW & HAPUS FOTO TAMBAHAN TERSIMPAN (MODAL EDIT) -->
+                    <div v-if="editingProduct?.images?.length" class="space-y-2 pt-2 border-t-2 border-gray-100">
+                        <label class="block text-xs font-black uppercase tracking-wider text-gray-700">
+                            Foto Tambahan Tersimpan:
+                        </label>
+                        <div class="flex flex-wrap gap-2">
+                            <div 
+                                v-for="img in editingProduct.images" 
+                                :key="img.id" 
+                                class="relative w-16 h-16 rounded-xl overflow-hidden border-2 border-gray-900 group"
+                            >
+                                <img :src="getImageUrl(img.image_path)" class="w-full h-full object-cover" />
+                                <button 
+                                    type="button" 
+                                    @click="deleteGalleryImage(img.id)"
+                                    class="absolute top-1 right-1 bg-rose-600 text-white w-5 h-5 rounded-full text-[10px] font-black border border-gray-900 flex items-center justify-center cursor-pointer shadow-sm hover:scale-110 transition"
+                                    title="Hapus Foto Ini"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                     <div>
@@ -499,5 +602,6 @@ const toggleStatus = () => {
                 </form>
             </div>
         </div>
-    </div>
+
+    </AuthenticatedLayout>
 </template>

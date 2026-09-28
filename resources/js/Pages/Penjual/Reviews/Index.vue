@@ -1,5 +1,6 @@
 <script setup>
-import { Head, Link } from '@inertiajs/vue3';
+import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
+import { Head } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
 const props = defineProps({
@@ -31,23 +32,21 @@ const formatDate = (dateString) => {
 <template>
     <Head title="Laporan Ulasan Pembeli - SiswaMart" />
 
-    <div class="min-h-screen bg-stone-50 text-gray-900 font-sans pb-16 selection:bg-orange-500 selection:text-white">
+    <!-- BUNGKUS DENGAN LAYOUT UTAMA AGAR SIDEBAR & NAVBAR MUNCUL -->
+    <AuthenticatedLayout>
+        
+        <!-- KONTEN UTAMA: Hapus <header> bawaan, jadikan <div> biasa agar rapi di sebelah sidebar -->
+        <div class="space-y-6 pb-16">
 
-        <!-- Header Page -->
-        <header class="bg-white border-b-4 border-gray-900 px-6 py-4 sticky top-0 z-40">
-            <div class="max-w-7xl mx-auto flex justify-between items-center">
-                <div class="flex items-center gap-3">
-                    <h2 class="text-2xl font-black uppercase tracking-tighter text-gray-900">
-                        Laporan <span class="text-orange-500">Ulasan</span> Pembeli
-                    </h2>
-                    <span class="bg-amber-100 border-2 border-gray-900 text-gray-900 text-[10px] font-black uppercase px-2.5 py-1 rounded-md shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]">
-                        Reputasi Lapak
-                    </span>
-                </div>
+            <!-- Judul Halaman (Pengganti Header Lama) -->
+            <div class="flex items-center gap-3">
+                <h2 class="text-2xl font-black uppercase tracking-tighter text-gray-900">
+                    Laporan <span class="text-orange-500">Ulasan</span> Pembeli
+                </h2>
+                <span class="bg-amber-100 border-2 border-gray-900 text-gray-900 text-[10px] font-black uppercase px-2.5 py-1 rounded-md shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]">
+                    Reputasi Lapak
+                </span>
             </div>
-        </header>
-
-        <main class="max-w-7xl mx-auto px-6 mt-8 space-y-8">
 
             <!-- Banner & Ringkasan Statistik Rating -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -110,7 +109,7 @@ const formatDate = (dateString) => {
                 </div>
 
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
+                    <table class="w-full text-left border-collapse min-w-[600px]">
                         <thead>
                             <tr class="border-b-2 border-gray-900 bg-stone-100 text-[10px] font-black uppercase tracking-wider text-gray-700">
                                 <th class="p-3.5 rounded-l-xl">Produk</th>
@@ -154,6 +153,7 @@ const formatDate = (dateString) => {
                 </div>
             </div>
 
-        </main>
-    </div>
+        </div>
+
+    </AuthenticatedLayout>
 </template>

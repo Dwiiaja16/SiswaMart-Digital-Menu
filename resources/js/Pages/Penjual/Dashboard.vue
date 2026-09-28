@@ -1,5 +1,6 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
+import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
 
 const props = defineProps({
@@ -9,7 +10,7 @@ const props = defineProps({
     },
     shop: {
         type: Object,
-        default: () => ({ name: 'Lapak Wirausaha', is_open: false })
+        default: () => ({ name: 'Toko Wirausaha', is_open: false })
     },
     stats: {
         type: Object,
@@ -39,7 +40,7 @@ const getImageUrl = (imagePath) => {
     return imagePath.startsWith('/') ? imagePath : '/' + imagePath;
 };
 
-// Saklar cepat Buka/Tutup Lapak
+// Saklar cepat Buka/Tutup Toko
 const toggleShopForm = useForm({
     is_open: props.shop?.is_open ?? false,
 });
@@ -50,15 +51,24 @@ const toggleShop = () => {
     });
 };
 
-// State Modal Edit Profil & Lapak
-const showEditModal = ref(false);
+// State Modal Profile Saya & Edit Akun
+const showProfileModal = ref(false);
+
+// Lock scroll dan interaksi halaman belakang saat modal terbuka
+watch(showProfileModal, (isOpen) => {
+    if (isOpen) {
+        document.body.style.overflow = 'hidden';
+    } else {
+        document.body.style.overflow = 'auto';
+    }
+});
 
 const editForm = useForm({
     username: props.auth?.user?.username || '',
     whatsapp_number: props.auth?.user?.whatsapp_number || '',
     shop_name: props.shop?.name || '',
     name: props.shop?.name || '',
-    current_password: '', // Konfirmasi Password Lama
+    current_password: '', // Password Lama
     password: '',         // Password Baru
 });
 
@@ -66,20 +76,13 @@ const updateProfile = () => {
     editForm.patch('/profile', {
         preserveScroll: true,
         onSuccess: () => {
-            showEditModal.value = false;
+            showProfileModal.value = false;
             editForm.reset('password', 'current_password');
         },
         onError: (errors) => {
             console.log("Error Validasi:", errors);
         }
     });
-};
-
-// State & Function Modal Konfirmasi Keluar (Logout)
-const showLogoutModal = ref(false);
-
-const handleLogout = () => {
-    router.post(route('logout'));
 };
 
 const stockLabel = (status) => {
@@ -96,74 +99,51 @@ const showNewPassword = ref(false);
 <template>
     <Head title="Dashboard Penjual - SiswaMart" />
 
-    <div class="min-h-screen bg-stone-50 text-gray-900 font-sans pb-16 selection:bg-orange-500 selection:text-white relative">
+    <AuthenticatedLayout>
+        <div class="space-y-6 sm:space-y-8 pb-12">
 
-        <!-- Navbar Header Penjual -->
-        <nav class="bg-white border-b-4 border-gray-900 px-4 sm:px-6 py-3.5 sticky top-0 z-40">
-            <div class="max-w-7xl mx-auto flex justify-between items-center gap-2">
-                <div class="flex items-center gap-2 sm:gap-3">
-                    <Link href="/" class="text-xl sm:text-2xl font-black uppercase tracking-tighter hover:text-orange-500 transition">
-                        Siswa<span class="text-orange-500">Mart</span>
-                    </Link>
-                    <span class="bg-orange-100 border-2 border-gray-900 text-gray-900 text-[9px] sm:text-[10px] font-black uppercase px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md shadow-sm">
-                        Lapak
-                    </span>
-                </div>
-
-                <div class="flex items-center gap-2 sm:gap-3">
-                    <button
-                        @click="showEditModal = true"
-                        class="px-3 sm:px-4 py-2 bg-amber-400 hover:bg-amber-300 border-2 border-gray-900 text-gray-900 font-black text-xs uppercase tracking-wider rounded-xl shadow-sm active:scale-95 transition flex items-center gap-1.5"
-                    >
-                        <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                        <span class="hidden sm:inline">Edit Profil</span>
-                        <span class="sm:hidden">Profil</span>
-                    </button>
-
-                    <button
-                        @click="showLogoutModal = true"
-                        type="button"
-                        class="px-3 sm:px-4 py-2 bg-rose-400 hover:bg-rose-300 border-2 border-gray-900 text-gray-900 font-black text-xs uppercase tracking-wider rounded-xl shadow-sm active:scale-95 transition"
-                    >
-                        Keluar
-                    </button>
-                </div>
-            </div>
-        </nav>
-
-        <main class="max-w-7xl mx-auto px-4 sm:px-6 mt-6 sm:mt-8 space-y-6 sm:space-y-8">
-
-            <!-- Banner Status Lapak -->
-            <div class="bg-amber-400 border-4 border-gray-900 rounded-3xl p-5 sm:p-8 shadow-[4px_4px_0px_0px_rgba(17,24,39,1)] sm:shadow-[6px_6px_0px_0px_rgba(17,24,39,1)] flex flex-col md:flex-row justify-between items-start md:items-center gap-4 sm:gap-6">
+            <!-- 1. BANNER STATUS TOKO NEO-BRUTALISM -->
+            <div class="bg-amber-400 border-3 sm:border-4 border-gray-900 rounded-2xl sm:rounded-3xl p-5 sm:p-8 shadow-[4px_4px_0px_0px_rgba(17,24,39,1)] sm:shadow-[6px_6px_0px_0px_rgba(17,24,39,1)] flex flex-col md:flex-row justify-between items-start md:items-center gap-4 sm:gap-6">
                 <div>
-                    <span class="text-[9px] sm:text-[10px] font-black uppercase tracking-widest bg-gray-900 text-white px-2.5 py-1 rounded-md">
-                        Status Lapak Wirausaha
+                    <span class="text-[9px] sm:text-[10px] font-black uppercase tracking-widest bg-gray-900 text-white px-2.5 py-1 rounded-md shadow-[1px_1px_0px_0px_rgba(17,24,39,1)]">
+                        Status Toko Wirausaha
                     </span>
                     <h1 class="text-xl sm:text-3xl font-black uppercase tracking-tight text-gray-900 mt-2">
-                        {{ shop?.name || 'Lapak Belum Dinamai' }}
+                        {{ shop?.name || 'Toko Belum Dinamai' }}
                     </h1>
                     <p class="text-xs font-bold text-gray-900 mt-1 opacity-90">
-                        Halo <b>{{ auth?.user?.username }}</b>, atur status lapakmu agar pembeli tahu kapan jajanan siap dipesan via WhatsApp.
+                        Halo <b>{{ auth?.user?.username }}</b>, atur status Toko kamu agar pembeli tahu kapan jajanan siap dipesan via WhatsApp.
                     </p>
                 </div>
 
-                <button
-                    @click="toggleShop"
-                    :disabled="toggleShopForm.processing"
-                    :class="shop?.is_open ? 'bg-emerald-400 hover:bg-emerald-300' : 'bg-rose-400 hover:bg-rose-300'"
-                    class="w-full sm:w-auto px-5 sm:px-6 py-3 sm:py-3.5 border-3 border-gray-900 text-gray-900 font-black text-xs uppercase tracking-widest rounded-2xl shadow-sm active:scale-95 transition flex items-center justify-center gap-2"
-                >
-                    <span class="w-3 h-3 rounded-full border border-gray-900" :class="shop?.is_open ? 'bg-emerald-900 animate-pulse' : 'bg-rose-900'"></span>
-                    Status Lapak: {{ shop?.is_open ? 'BUKA' : 'TUTUP' }}
-                </button>
+                <div class="flex items-center gap-2 sm:gap-3 w-full md:w-auto">
+                    <button
+                        @click="showProfileModal = true"
+                        class="px-3.5 sm:px-5 py-3 border-3 border-gray-900 bg-white hover:bg-stone-100 text-gray-900 font-black text-xs uppercase tracking-wider rounded-2xl shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] active:scale-95 transition flex items-center gap-1.5 shrink-0"
+                    >
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        <span>Profile Saya</span>
+                    </button>
+
+                    <button
+                        @click="toggleShop"
+                        :disabled="toggleShopForm.processing"
+                        :class="shop?.is_open ? 'bg-emerald-400 hover:bg-emerald-300' : 'bg-rose-400 hover:bg-rose-300'"
+                        class="w-full sm:w-auto px-5 sm:px-6 py-3 border-3 border-gray-900 text-gray-900 font-black text-xs uppercase tracking-widest rounded-2xl shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] active:scale-95 transition flex items-center justify-center gap-2"
+                    >
+                        <span class="w-3 h-3 rounded-full border border-gray-900" :class="shop?.is_open ? 'bg-emerald-900 animate-pulse' : 'bg-rose-900'"></span>
+                        Status Toko: {{ shop?.is_open ? 'BUKA' : 'TUTUP' }}
+                    </button>
+                </div>
             </div>
 
-            <!-- Grid Ringkasan Statistik (2 KOLOM DI MOBILE) -->
-            <div class="stat-grid-mobile grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-6">
+            <!-- 2. GRID KARTU STATISTIK UTAMA -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-6">
                 
-                <div class="bg-white border-3 sm:border-4 border-gray-900 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-sm sm:shadow-[6px_6px_0px_0px_rgba(17,24,39,1)] flex flex-col justify-between space-y-3 sm:space-y-4 relative overflow-hidden">
+                <!-- Total Menu Produk -->
+                <div class="bg-white border-3 sm:border-4 border-gray-900 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] sm:shadow-[6px_6px_0px_0px_rgba(17,24,39,1)] flex flex-col justify-between space-y-3 sm:space-y-4 relative overflow-hidden">
                     <div class="absolute top-0 left-0 right-0 h-2 bg-orange-500 border-b-2 border-gray-900"></div>
 
                     <div class="flex justify-between items-start pt-1">
@@ -182,20 +162,21 @@ const showNewPassword = ref(false);
                         <div class="text-3xl font-black text-gray-900 tracking-tight">{{ stats?.total_products ?? 0 }} <span class="text-xs font-black text-gray-400 uppercase">Item</span></div>
                         
                         <div class="flex items-center gap-1.5 mt-3 flex-wrap">
-                            <span class="bg-emerald-100 text-emerald-900 border border-gray-900 text-[9px] font-black px-2 py-0.5 rounded-lg uppercase">
+                            <span class="bg-emerald-100 text-emerald-900 border border-gray-900 text-[9px] font-black px-2 py-0.5 rounded-lg uppercase shadow-[1px_1px_0px_0px_rgba(17,24,39,1)]">
                                 Ready: {{ stats?.ready_count ?? 0 }}
                             </span>
-                            <span class="bg-amber-100 text-amber-900 border border-gray-900 text-[9px] font-black px-2 py-0.5 rounded-lg uppercase">
+                            <span class="bg-amber-100 text-amber-900 border border-gray-900 text-[9px] font-black px-2 py-0.5 rounded-lg uppercase shadow-[1px_1px_0px_0px_rgba(17,24,39,1)]">
                                 PO: {{ stats?.pre_order_count ?? 0 }}
                             </span>
-                            <span class="bg-rose-100 text-rose-900 border border-gray-900 text-[9px] font-black px-2 py-0.5 rounded-lg uppercase">
+                            <span class="bg-rose-100 text-rose-900 border border-gray-900 text-[9px] font-black px-2 py-0.5 rounded-lg uppercase shadow-[1px_1px_0px_0px_rgba(17,24,39,1)]">
                                 Habis: {{ stats?.out_of_stock_count ?? 0 }}
                             </span>
                         </div>
                     </div>
                 </div>
 
-                <div class="bg-white border-4 border-gray-900 rounded-3xl p-6 shadow-[6px_6px_0px_0px_rgba(17,24,39,1)] flex flex-col justify-between space-y-4 relative overflow-hidden">
+                <!-- Ulasan Masuk -->
+                <div class="bg-white border-3 sm:border-4 border-gray-900 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] sm:shadow-[6px_6px_0px_0px_rgba(17,24,39,1)] flex flex-col justify-between space-y-3 sm:space-y-4 relative overflow-hidden">
                     <div class="absolute top-0 left-0 right-0 h-2 bg-amber-400 border-b-2 border-gray-900"></div>
 
                     <div class="flex justify-between items-start pt-1">
@@ -216,13 +197,14 @@ const showNewPassword = ref(false);
                     </div>
                 </div>
 
-                <div class="bg-white border-4 border-gray-900 rounded-3xl p-6 shadow-[6px_6px_0px_0px_rgba(17,24,39,1)] flex flex-col justify-between space-y-4 relative overflow-hidden">
+                <!-- Rating Toko -->
+                <div class="bg-white border-3 sm:border-4 border-gray-900 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] sm:shadow-[6px_6px_0px_0px_rgba(17,24,39,1)] flex flex-col justify-between space-y-3 sm:space-y-4 relative overflow-hidden">
                     <div class="absolute top-0 left-0 right-0 h-2 bg-sky-400 border-b-2 border-gray-900"></div>
 
                     <div class="flex justify-between items-start pt-1">
                         <div>
                             <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Reputasi</span>
-                            <h3 class="text-xs font-black uppercase tracking-wider text-gray-900 mt-0.5">Rating Lapak</h3>
+                            <h3 class="text-xs font-black uppercase tracking-wider text-gray-900 mt-0.5">Rating Toko</h3>
                         </div>
                         <div class="w-10 h-10 bg-sky-400 border-2 border-gray-900 rounded-2xl flex items-center justify-center shrink-0 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]">
                             <svg class="w-5 h-5 fill-amber-300 stroke-gray-900" stroke-width="2" viewBox="0 0 24 24">
@@ -240,45 +222,17 @@ const showNewPassword = ref(false);
                     </div>
                 </div>
 
-                <div class="bg-white border-4 border-gray-900 rounded-3xl p-6 shadow-[6px_6px_0px_0px_rgba(17,24,39,1)] flex flex-col justify-between space-y-3 relative overflow-hidden">
-                    <div class="absolute top-0 left-0 right-0 h-2 bg-stone-900"></div>
-                    <span class="text-[10px] font-black uppercase tracking-widest text-gray-400 pt-1">Menu Pintas</span>
-                    
-                    <div class="space-y-2">
-                        <Link
-                            :href="route('products.index')"
-                            class="w-full flex items-center justify-center gap-2 py-2 bg-orange-500 hover:bg-orange-400 border-2 border-gray-900 text-gray-900 font-black text-[11px] uppercase tracking-wider rounded-xl text-center shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] transition"
-                        >
-                            Kelola Produk
-                        </Link>
-                        <Link
-                            :href="route('reviews.index')"
-                            class="w-full flex items-center justify-center gap-2 py-2 bg-stone-100 hover:bg-stone-200 border-2 border-gray-900 text-gray-900 font-black text-[11px] uppercase tracking-wider rounded-xl text-center shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] transition"
-                        >
-                            Moderasi Ulasan
-                        </Link>
-                        <Link
-                            :href="route('catalog.index')"
-                            target="_blank"
-                            class="w-full flex items-center justify-center gap-1.5 py-2 bg-amber-300 hover:bg-amber-200 border-2 border-gray-900 text-gray-900 font-black text-[11px] uppercase tracking-wider rounded-xl text-center shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] active:scale-95 transition"
-                        >
-                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                            </svg>
-                            Lihat Katalog Publik
-                        </Link>
-                    </div>
-                </div>
-
             </div>
 
-            <!-- Preview Etalase & Ulasan -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div class="bg-white border-4 border-gray-900 rounded-3xl p-6 shadow-[6px_6px_0px_0px_rgba(17,24,39,1)] space-y-5">
+            <!-- 3. PREVIEW ETALASE & ULASAN TERKINI -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
+                
+                <!-- Etalase Menu Terkini -->
+                <div class="bg-white border-3 sm:border-4 border-gray-900 rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] sm:shadow-[6px_6px_0px_0px_rgba(17,24,39,1)] space-y-4 sm:space-y-5">
                     <div class="flex justify-between items-center border-b-2 border-gray-100 pb-3">
                         <div>
-                            <h2 class="text-lg font-black uppercase tracking-tight">Etalase Menu Terkini</h2>
-                            <p class="text-[11px] font-bold text-gray-400 uppercase">Ringkasan status jajanan kamu</p>
+                            <h2 class="text-base sm:text-lg font-black uppercase tracking-tight">Etalase Menu Terkini</h2>
+                            <p class="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase">Ringkasan status jajanan kamu</p>
                         </div>
                         <Link :href="route('products.index')" class="text-xs font-black text-orange-600 hover:underline uppercase">
                             Lihat Semua
@@ -291,15 +245,15 @@ const showNewPassword = ref(false);
                             :key="product.id"
                             class="p-3.5 bg-stone-50 border-2 border-gray-900 rounded-2xl flex items-center justify-between shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]"
                         >
-                            <div class="flex items-center gap-3">
+                            <div class="flex items-center gap-3 min-w-0">
                                 <div class="w-12 h-12 bg-white border-2 border-gray-900 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center">
                                     <img v-if="product.image" :src="getImageUrl(product.image)" loading="lazy" class="w-full h-full object-cover" />
                                     <svg v-else class="w-5 h-5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M3 7l1.5-3h15L21 7M3 7h18M3 7v11a2 2 0 002 2h14a2 2 0 002-2V7" />
                                     </svg>
                                 </div>
-                                <div>
-                                    <h4 class="font-black text-xs uppercase text-gray-900 line-clamp-1">{{ product.name }}</h4>
+                                <div class="min-w-0">
+                                    <h4 class="font-black text-xs uppercase text-gray-900 truncate">{{ product.name }}</h4>
                                     <span class="text-orange-600 font-black text-xs">Rp {{ Number(product.price || 0).toLocaleString('id-ID') }}</span>
                                 </div>
                             </div>
@@ -309,25 +263,27 @@ const showNewPassword = ref(false);
                                     'bg-amber-100 text-amber-900': product.stock_status === 'pre_order',
                                     'bg-rose-100 text-rose-900': product.stock_status === 'out_of_stock'
                                 }"
-                                class="text-[9px] font-black uppercase px-2.5 py-1 rounded-lg border border-gray-900 shrink-0"
+                                class="text-[9px] font-black uppercase px-2.5 py-1 rounded-lg border border-gray-900 shrink-0 shadow-[1px_1px_0px_0px_rgba(17,24,39,1)]"
                             >
                                 {{ stockLabel(product.stock_status) }}
                             </span>
                         </div>
+                        
                         <div v-if="!recentProducts || recentProducts.length === 0" class="text-center py-8 text-gray-400 font-bold text-xs uppercase">
                             Belum ada produk di etalase.
                         </div>
                     </div>
                 </div>
 
-                <div class="bg-white border-4 border-gray-900 rounded-3xl p-6 shadow-[6px_6px_0px_0px_rgba(17,24,39,1)] space-y-5">
+                <!-- Ulasan Pembeli Terbaru -->
+                <div class="bg-white border-3 sm:border-4 border-gray-900 rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] sm:shadow-[6px_6px_0px_0px_rgba(17,24,39,1)] space-y-4 sm:space-y-5">
                     <div class="flex justify-between items-center border-b-2 border-gray-100 pb-3">
                         <div>
-                            <h2 class="text-lg font-black uppercase tracking-tight">Ulasan Pembeli Terbaru</h2>
-                            <p class="text-[11px] font-bold text-gray-400 uppercase">Testimoni masuk dari siswa</p>
+                            <h2 class="text-base sm:text-lg font-black uppercase tracking-tight">Ulasan Pembeli Terbaru</h2>
+                            <p class="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase">Testimoni masuk dari siswa</p>
                         </div>
                         <Link :href="route('reviews.index')" class="text-xs font-black text-orange-600 hover:underline uppercase">
-                            Kelola Ulasan 
+                            Kelola Ulasan
                         </Link>
                     </div>
 
@@ -339,7 +295,7 @@ const showNewPassword = ref(false);
                         >
                             <div class="flex justify-between items-center">
                                 <span class="font-black text-xs uppercase text-gray-900">{{ rev.reviewer_name }}</span>
-                                <span class="bg-amber-100 text-amber-900 border border-gray-900 text-[10px] px-2 py-0.5 rounded-md font-black flex items-center gap-1">
+                                <span class="bg-amber-100 text-amber-900 border border-gray-900 text-[10px] px-2 py-0.5 rounded-md font-black flex items-center gap-1 shadow-[1px_1px_0px_0px_rgba(17,24,39,1)]">
                                     <svg class="w-3 h-3 text-amber-500 fill-amber-400" viewBox="0 0 24 24">
                                         <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
                                     </svg>
@@ -351,22 +307,29 @@ const showNewPassword = ref(false);
                                 Pada Produk: <span class="text-gray-900">{{ rev.product?.name || 'Produk' }}</span>
                             </div>
                         </div>
+
                         <div v-if="!recentReviews || recentReviews.length === 0" class="text-center py-8 text-gray-400 font-bold text-xs uppercase">
                             Belum ada ulasan yang masuk.
                         </div>
                     </div>
                 </div>
+
             </div>
 
-        </main>
+        </div>
 
-        <!-- MODAL EDIT PROFIL & LAPAK -->
-        <div v-if="showEditModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div class="bg-white border-4 border-gray-900 rounded-3xl w-full max-w-md p-6 sm:p-8 shadow-[8px_8px_0px_0px_rgba(17,24,39,1)] space-y-5 max-h-[90vh] overflow-y-auto">
+        <!-- MODAL PROFILE SAYA (TERKUNCI: SIDEBAR & SCROLL BELAKANG TIDAK BISA DIKLIK) -->
+        <div v-if="showProfileModal" class="fixed inset-0 z-[999] flex items-center justify-center bg-gray-900/60 p-4 pointer-events-auto">
+            
+            <!-- Backdrop Clickable -->
+            <div @click="showProfileModal = false" class="fixed inset-0"></div>
+
+            <!-- Card Content Modal (pointer-events-auto agar isi modal tetap bisa diklik) -->
+            <div class="relative bg-white border-4 border-gray-900 rounded-3xl w-full max-w-md p-6 sm:p-8 shadow-[8px_8px_0px_0px_rgba(17,24,39,1)] space-y-5 max-h-[90vh] overflow-y-auto z-10 pointer-events-auto">
                 
                 <div class="flex justify-between items-center border-b-2 border-gray-100 pb-3">
-                    <h3 class="text-lg font-black uppercase text-gray-900">Edit Profil & Lapak</h3>
-                    <button @click="showEditModal = false" class="text-gray-400 hover:text-gray-900 font-black text-sm">✕</button>
+                    <h3 class="text-lg font-black uppercase text-gray-900">Profile Saya</h3>
+                    <button @click="showProfileModal = false" class="w-8 h-8 bg-stone-100 hover:bg-stone-200 border-2 border-gray-900 rounded-xl flex items-center justify-center font-black text-gray-900 transition cursor-pointer">✕</button>
                 </div>
 
                 <form @submit.prevent="updateProfile" class="space-y-4">
@@ -382,9 +345,9 @@ const showNewPassword = ref(false);
                         <div v-if="editForm.errors.username" class="text-rose-600 text-[10px] font-bold">{{ editForm.errors.username }}</div>
                     </div>
 
-                    <!-- 2. NAMA LAPAK USAHA -->
+                    <!-- 2. NAMA TOKO USAHA -->
                     <div class="space-y-1.5">
-                        <label class="block text-xs font-black uppercase text-gray-700">Nama Lapak Usaha</label>
+                        <label class="block text-xs font-black uppercase text-gray-700">Nama Toko Usaha</label>
                         <input 
                             v-model="editForm.shop_name" 
                             @input="editForm.name = editForm.shop_name"
@@ -407,13 +370,12 @@ const showNewPassword = ref(false);
                         <div v-if="editForm.errors.whatsapp_number" class="text-rose-600 text-[10px] font-bold">{{ editForm.errors.whatsapp_number }}</div>
                     </div>
 
-                    <!-- 4. SEKSI KEAMANAN PASSWORD DENGAN IKON MATA -->
+                    <!-- 4. UBAH PASSWORD -->
                     <div class="border-t-2 border-gray-100 pt-3 space-y-3">
                         <span class="text-[10px] font-black uppercase tracking-wider text-gray-400 block">
                             Ganti Password (Opsional)
                         </span>
 
-                        <!-- INPUT PASSWORD BARU -->
                         <div class="space-y-1.5">
                             <label class="block text-xs font-black uppercase text-gray-700">
                                 Password Baru
@@ -428,8 +390,7 @@ const showNewPassword = ref(false);
                                 <button 
                                     type="button" 
                                     @click="showNewPassword = !showNewPassword"
-                                    class="absolute right-3 text-gray-500 hover:text-gray-900 focus:outline-none p-1"
-                                    title="Lihat / Sembunyikan Password"
+                                    class="absolute right-3 text-gray-500 hover:text-gray-900 focus:outline-none p-1 cursor-pointer"
                                 >
                                     <svg v-if="showNewPassword" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                         <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
@@ -448,7 +409,6 @@ const showNewPassword = ref(false);
                             </div>
                         </div>
 
-                        <!-- INPUT PASSWORD LAMA (MUNCUL JIKA PASSWORD BARU MULA DIKETIK) -->
                         <div v-if="editForm.password" class="space-y-1.5 bg-amber-100 border-2 border-gray-900 rounded-2xl p-3">
                             <div class="flex justify-between items-center">
                                 <label class="block text-xs font-black uppercase text-gray-900">
@@ -469,8 +429,7 @@ const showNewPassword = ref(false);
                                 <button 
                                     type="button" 
                                     @click="showCurrentPassword = !showCurrentPassword"
-                                    class="absolute right-3 text-gray-500 hover:text-gray-900 focus:outline-none p-1"
-                                    title="Lihat / Sembunyikan Password"
+                                    class="absolute right-3 text-gray-500 hover:text-gray-900 focus:outline-none p-1 cursor-pointer"
                                 >
                                     <svg v-if="showCurrentPassword" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                         <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
@@ -490,7 +449,7 @@ const showNewPassword = ref(false);
                         </div>
                     </div>
 
-                    <!-- 5. INTEGRASI GMAIL / GOOGLE OAUTH -->
+                    <!-- 5. INTEGRASI GOOGLE OAUTH -->
                     <div class="bg-stone-100 border-2 border-gray-900 rounded-2xl p-3.5 space-y-2">
                         <div class="flex items-center justify-between">
                             <span class="text-[11px] font-black uppercase text-gray-900">AKUN GMAIL GOOGLE</span>
@@ -506,7 +465,6 @@ const showNewPassword = ref(false);
                             {{ auth?.user?.email ? 'Email: ' + auth?.user?.email : 'Belum ada email Gmail yang tertaut.' }}
                         </p>
 
-                        <!-- Tombol Aksi (Tautkan / Ganti Akun & Tombol Putuskan Tautan) -->
                         <div class="flex flex-wrap items-center gap-2 pt-1">
                             <a 
                                 :href="route('google.login')" 
@@ -521,12 +479,11 @@ const showNewPassword = ref(false);
                                 {{ auth?.user?.google_id ? 'GANTI AKUN GOOGLE' : 'TAUTKAN AKUN GOOGLE' }}
                             </a>
 
-                            <!-- Tombol Putuskan Tautan (Hanya muncul jika sudah tertaut) -->
                             <button 
                                 v-if="auth?.user?.google_id"
                                 @click="router.post(route('google.disconnect'))"
                                 type="button"
-                                class="px-3 py-1.5 bg-rose-400 hover:bg-rose-500 border-2 border-gray-900 text-gray-900 font-black text-[10px] uppercase rounded-xl shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] active:scale-95 transition"
+                                class="px-3 py-1.5 bg-rose-400 hover:bg-rose-500 border-2 border-gray-900 text-gray-900 font-black text-[10px] uppercase rounded-xl shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] active:scale-95 transition cursor-pointer"
                             >
                                 Putuskan
                             </button>
@@ -537,15 +494,15 @@ const showNewPassword = ref(false);
                     <div class="flex gap-3 pt-2">
                         <button 
                             type="button" 
-                            @click="showEditModal = false"
-                            class="flex-1 py-3 bg-stone-100 hover:bg-stone-200 border-2 border-gray-900 text-gray-900 font-black text-xs uppercase tracking-wider rounded-xl transition"
+                            @click="showProfileModal = false"
+                            class="flex-1 py-3 bg-stone-100 hover:bg-stone-200 border-2 border-gray-900 text-gray-900 font-black text-xs uppercase tracking-wider rounded-xl transition cursor-pointer"
                         >
                             Batal
                         </button>
                         <button 
                             type="submit" 
                             :disabled="editForm.processing"
-                            class="flex-1 py-3 bg-orange-500 hover:bg-orange-400 border-2 border-gray-900 text-gray-900 font-black text-xs uppercase tracking-widest rounded-xl shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] active:scale-95 transition"
+                            class="flex-1 py-3 bg-orange-500 hover:bg-orange-400 border-2 border-gray-900 text-gray-900 font-black text-xs uppercase tracking-widest rounded-xl shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] active:scale-95 transition cursor-pointer"
                         >
                             Simpan Perubahan
                         </button>
@@ -555,147 +512,5 @@ const showNewPassword = ref(false);
             </div>
         </div>
 
-        <!-- MODAL KONFIRMASI KELUAR (LOGOUT) -->
-        <div v-if="showLogoutModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div class="bg-white border-4 border-gray-900 rounded-3xl w-full max-w-sm p-6 shadow-[8px_8px_0px_0px_rgba(17,24,39,1)] space-y-4 text-center">
-                
-                <div class="w-12 h-12 bg-rose-100 border-2 border-gray-900 rounded-2xl flex items-center justify-center mx-auto text-rose-600">
-                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                    </svg>
-                </div>
-
-                <div>
-                    <h3 class="text-lg font-black uppercase text-gray-900 tracking-tight">Konfirmasi Keluar</h3>
-                    <p class="text-xs font-bold text-gray-500 mt-1">
-                        Apakah kamu yakin ingin keluar dari akun lapak ini?
-                    </p>
-                </div>
-
-                <div class="flex gap-3 pt-2">
-                    <button 
-                        type="button" 
-                        @click="showLogoutModal = false"
-                        class="flex-1 py-3 bg-stone-100 hover:bg-stone-200 border-2 border-gray-900 text-gray-900 font-black text-xs uppercase tracking-wider rounded-xl transition"
-                    >
-                        Batal
-                    </button>
-                    <button 
-                        type="button" 
-                        @click="handleLogout"
-                        class="flex-1 py-3 bg-rose-500 hover:bg-rose-400 border-2 border-gray-900 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] active:scale-95 transition"
-                    >
-                        Keluar
-                    </button>
-                </div>
-
-            </div>
-        </div>
-    </div>
+    </AuthenticatedLayout>
 </template>
-
-<style scoped>
-/* =========================================================
-   MOBILE RESPONSIVE OVERRIDE — PENJUAL DASHBOARD
-   ========================================================= */
-
-@media (max-width: 640px) {
-    /* 1. KUNCI SCREEN AGAR TIDAK BISA DI-SCROLL KE KANAN (OFFSIDE FIX) */
-    :global(html), :global(body) {
-        overflow-x: hidden !important;
-        width: 100vw !important;
-    }
-
-    .min-h-screen {
-        overflow-x: hidden !important;
-        width: 100% !important;
-    }
-
-    /* 2. HEADER NAVBAR FIX */
-    nav {
-        padding: 0.5rem 0.75rem !important;
-    }
-    nav .max-w-7xl {
-        display: flex !important;
-        justify-content: space-between !important;
-        align-items: center !important;
-        width: 100% !important;
-    }
-    /* Logo SiswaMart lebih ringkas */
-    nav a.text-xl, nav a.text-2xl {
-        font-size: 1.1rem !important;
-    }
-    /* Sembunyikan badge "LAPAK" kecil di HP agar hemat tempat */
-    nav span.bg-orange-100 {
-        display: none !important;
-    }
-    /* Perkecil tombol Edit Profil & Keluar */
-    nav button {
-        padding: 0.35rem 0.55rem !important;
-        font-size: 0.65rem !important;
-        border-radius: 0.5rem !important;
-    }
-
-    /* 3. CARD CONTAINER FIT SCREEN */
-    main.max-w-7xl {
-        padding-left: 0.75rem !important;
-        padding-right: 0.75rem !important;
-        width: 100% !important;
-        box-sizing: border-box !important;
-    }
-
-    /* 4. PENYESUAIAN CARD STATISTIK 2-KOLOM */
-    .grid.grid-cols-2 {
-        gap: 0.5rem !important;
-    }
-    .grid.grid-cols-2 > div {
-        padding: 0.65rem 0.55rem !important;
-        border-radius: 1rem !important;
-        border-width: 2px !important;
-        box-shadow: 3px 3px 0px 0px #111827 !important;
-    }
-
-    /* Icon Bulat di Atas Card */
-    .w-10.h-10 {
-        width: 1.6rem !important;
-        height: 1.6rem !important;
-        border-radius: 0.5rem !important;
-    }
-    .w-10.h-10 svg {
-        width: 0.85rem !important;
-        height: 0.85rem !important;
-    }
-
-    /* Ukuran Teks Angka & Judul Card */
-    .text-3xl {
-        font-size: 1.25rem !important;
-        line-height: 1.4rem !important;
-    }
-    h3.text-xs {
-        font-size: 0.65rem !important;
-    }
-
-    /* 5. KHUSUS CARD MENU PINTAS (RAPIKAN TOMBOL) */
-    .space-y-2 {
-        display: flex !important;
-        flex-direction: column !important;
-        gap: 0.35rem !important;
-    }
-    .space-y-2 a {
-        padding: 0.35rem 0.25rem !important;
-        font-size: 0.58rem !important;
-        line-height: 1 !important;
-        border-radius: 0.5rem !important;
-        box-shadow: 1.5px 1.5px 0px 0px #111827 !important;
-        white-space: nowrap !important;
-        letter-spacing: normal !important;
-    }
-
-    /* 6. ETALASE & ULASAN CARD */
-    .grid.grid-cols-1.lg\:grid-cols-2 > div {
-        padding: 0.85rem !important;
-        border-radius: 1.25rem !important;
-        box-shadow: 4px 4px 0px 0px #111827 !important;
-    }
-}
-</style>
