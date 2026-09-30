@@ -194,4 +194,20 @@ Route::get('/sitemap.xml', function () {
     return response($xml, 200)->header('Content-Type', 'text/xml; charset=UTF-8');
 });
 
+// Webhook Auto-Deploy GitHub
+Route::post('/deploy-siswamart-secret-11', function () {
+    // Jalankan git pull & bersihkan cache
+    $output = shell_exec('cd ' . base_path() . ' && git pull origin main 2>&1');
+    
+    \Illuminate\Support\Facades\Artisan::call('route:clear');
+    \Illuminate\Support\Facades\Artisan::call('config:clear');
+    \Illuminate\Support\Facades\Artisan::call('cache:clear');
+
+    return response()->json([
+        'status' => 'success',
+        'message' => 'Auto deploy berhasil!',
+        'output' => $output
+    ]);
+});
+
 require __DIR__ . '/auth.php';
