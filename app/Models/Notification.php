@@ -13,6 +13,8 @@ class Notification extends Model
     protected $fillable = [
         'product_id',
         'type',
+        'title',
+        'message',
         'is_read',
         'read_at',
     ];

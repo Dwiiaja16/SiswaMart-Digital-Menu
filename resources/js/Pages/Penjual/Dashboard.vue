@@ -234,7 +234,7 @@ const showNewPassword = ref(false);
                             <h2 class="text-base sm:text-lg font-black uppercase tracking-tight">Etalase Menu Terkini</h2>
                             <p class="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase">Ringkasan status jajanan kamu</p>
                         </div>
-                        <Link :href="route('products.index')" class="text-xs font-black text-orange-600 hover:underline uppercase">
+                        <Link :href="route('penjual.products.index')" class="text-xs font-black text-orange-600 hover:underline uppercase">
                             Lihat Semua
                         </Link>
                     </div>

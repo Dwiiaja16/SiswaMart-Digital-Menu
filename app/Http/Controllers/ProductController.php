@@ -129,29 +129,15 @@ class ProductController extends Controller
         // 4. Attach array ID kategori ke tabel pivot category_product
         $product->categories()->attach($request->category_ids);
 
-        // 5. Buat notifikasi produk baru (LENGKAP & AMAN DARI ERROR DATABASE)
+        // 5. Buat notifikasi produk baru untuk Admin
         try {
-            $notifData = [
-                'type' => 'produk_baru',
-            ];
-
-            if (Schema::hasColumn('notifications', 'product_id')) {
-                $notifData['product_id'] = $product->id;
-            }
-            if (Schema::hasColumn('notifications', 'title')) {
-                $notifData['title'] = 'Produk Baru Ditambahkan';
-            }
-            if (Schema::hasColumn('notifications', 'message')) {
-                $notifData['message'] = "Lapak '{$shop->name}' baru saja menambahkan produk: {$product->name}";
-            }
-            if (Schema::hasColumn('notifications', 'is_read')) {
-                $notifData['is_read'] = false;
-            }
-
-            Notification::create($notifData);
+            Notification::create([
+                'product_id' => $product->id,
+                'type'       => 'produk_baru',
+                'is_read'    => false,
+            ]);
         } catch (\Exception $e) {
-            // Biarkan lewat tanpa menggagalkan pembuatan produk
-            \Illuminate\Support\Facades\Log::error('Gagal membuat notifikasi produk baru: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error('Gagal membuat notifikasi: ' . $e->getMessage());
         }
 
         return redirect()->back()->with('success', 'Produk berhasil ditambahkan!');

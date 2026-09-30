@@ -1,25 +1,26 @@
 <script setup>
 import { Head, Link, router } from "@inertiajs/vue3";
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed } from "vue";
 
 const props = defineProps({
-    products: Array,
-    categories: Array,
+    products: {
+        type: Array,
+        default: () => [],
+    },
+    categories: {
+        type: Array,
+        default: () => [],
+    },
     priceStats: Object,
     filters: Object,
 });
 
-// Otomatis refresh data produk ketika kembali ke halaman Kategori
-onMounted(() => {
-    router.reload({ only: ["products"] });
-});
-
-const search = ref(props.filters.search || "");
-const selectedCategory = ref(props.filters.category ? String(props.filters.category) : "");
-const minPrice = ref(props.filters.min_price || "");
-const maxPrice = ref(props.filters.max_price || "");
-const selectedSort = ref(props.filters.sort || "latest");
-const selectedStatus = ref(props.filters.status || "");
+const search = ref(props.filters?.search || "");
+const selectedCategory = ref(props.filters?.category ? String(props.filters.category) : "");
+const minPrice = ref(props.filters?.min_price || "");
+const maxPrice = ref(props.filters?.max_price || "");
+const selectedSort = ref(props.filters?.sort || "latest");
+const selectedStatus = ref(props.filters?.status || "");
 const showMobileFilters = ref(false);
 const mobileMenuOpen = ref(false);
 const sortDropdownOpen = ref(false);
@@ -69,6 +70,7 @@ const activePreset = computed(() => {
     return -1;
 });
 
+// ✅ FILTER & SORT DENGAN PRESERVE SCROLL
 const applyFilters = () => {
     router.get(
         route("catalog.categories"),
@@ -80,7 +82,11 @@ const applyFilters = () => {
             sort: selectedSort.value,
             status: selectedStatus.value,
         },
-        { preserveState: true, replace: true }
+        { 
+            preserveScroll: true,
+            preserveState: true,
+            replace: true 
+        }
     );
 };
 
@@ -118,48 +124,18 @@ const hasActiveFilters = computed(() => {
 
 const currentCategoryName = computed(() => {
     if (!selectedCategory.value) return "Semua Menu";
-    const found = props.categories.find((c) => String(c.id) === String(selectedCategory.value));
+    const found = props.categories?.find((c) => String(c.id) === String(selectedCategory.value));
     return found ? found.name : "Kategori";
 });
 
-// --- LOGIKA AUTO-SLIDE GAMBAR PRODUK ---
-const activeSlides = ref({});
-let autoSlideInterval = null;
-
-const getProductImages = (product) => {
-    if (!product) return [];
-    if (product.images && product.images.length > 0) {
-        return product.images.map((img) => img.image_path);
-    }
-    return product.image ? [product.image] : [];
-};
-
-const getSlideIndex = (productId) => {
-    return activeSlides.value[productId] || 0;
-};
-
+// Helper Format URL Gambar Utama (Statis)
 const getImageUrl = (imagePath) => {
     if (!imagePath) return '';
-    if (imagePath.startsWith('http')) return imagePath;
-    return imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
+    const path = typeof imagePath === 'object' ? (imagePath.image_path || imagePath.url) : imagePath;
+    if (!path) return '';
+    if (typeof path === 'string' && (path.startsWith('http://') || path.startsWith('https://'))) return path;
+    return typeof path === 'string' && path.startsWith('/') ? path : `/${path}`;
 };
-
-onMounted(() => {
-    autoSlideInterval = setInterval(() => {
-        const productList = props.products || [];
-        productList.forEach((product) => {
-            const images = getProductImages(product);
-            if (images.length > 1) {
-                const currentIndex = activeSlides.value[product.id] || 0;
-                activeSlides.value[product.id] = (currentIndex + 1) % images.length;
-            }
-        });
-    }, 3000);
-});
-
-onUnmounted(() => {
-    if (autoSlideInterval) clearInterval(autoSlideInterval);
-});
 </script>
 
 <template>
@@ -642,44 +618,31 @@ onUnmounted(() => {
                                 :href="route('products.show', product.id)"
                                 class="block relative w-full aspect-[4/5] bg-stone-100 overflow-hidden"
                             >
-                                <!-- 1. Jika Ada Galeri Gambar > 1 (Auto-Slide) -->
-                                <template v-if="getProductImages(product).length > 1">
+                                <!-- AREA GAMBAR RASIO 4/5 (STATIS - TANPA AUTO SLIDE) -->
+                                <Link
+                                    :href="route('products.show', product.id)"
+                                    class="block relative w-full aspect-[4/5] bg-stone-100 overflow-hidden group"
+                                >
+                                    <!-- 1. Jika Ada Gambar Produk (Menampilkan Gambar Utama/Pertama) -->
                                     <img
-                                        :src="getImageUrl(getProductImages(product)[getSlideIndex(product.id)])"
+                                        v-if="product.image || (product.images && product.images.length > 0)"
+                                        :src="getImageUrl(product.image || product.images?.[0])"
                                         :alt="product.name"
                                         loading="lazy"
-                                        class="w-full h-full object-cover group-hover:scale-105 transition-all duration-500 ease-out"
+                                        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ease-out"
                                     />
-                                    <!-- Indikator Dots Slide Kecil -->
-                                    <div class="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 z-10 bg-black/40 px-2 py-1 rounded-full backdrop-blur-xs">
-                                        <span
-                                            v-for="(_, idx) in getProductImages(product)"
-                                            :key="idx"
-                                            class="h-1.5 rounded-full transition-all duration-300"
-                                            :class="getSlideIndex(product.id) === idx ? 'bg-amber-400 w-3' : 'bg-white/60 w-1.5'"
-                                        ></span>
+
+                                    <!-- 2. Jika Tanpa Foto -->
+                                    <div
+                                        v-else
+                                        class="w-full h-full flex flex-col items-center justify-center text-stone-400 font-bold text-[9px] sm:text-[10px] uppercase gap-1 bg-[#fffaf3]"
+                                    >
+                                        <svg class="w-5 h-5 sm:w-6 sm:h-6 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                        Tanpa Foto
                                     </div>
-                                </template>
-
-                                <!-- 2. Jika Hanya Ada 1 Gambar -->
-                                <img
-                                    v-else-if="getProductImages(product).length === 1"
-                                    :src="getImageUrl(getProductImages(product)[0])"
-                                    :alt="product.name"
-                                    loading="lazy"
-                                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ease-out"
-                                />
-
-                                <!-- 3. Jika Tanpa Foto -->
-                                <div
-                                    v-else
-                                    class="w-full h-full flex flex-col items-center justify-center text-stone-400 font-bold text-[9px] sm:text-[10px] uppercase gap-1 bg-[#fffaf3]"
-                                >
-                                    <svg class="w-5 h-5 sm:w-6 sm:h-6 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                    </svg>
-                                    Tanpa Foto
-                                </div>
+                                </Link>
 
                                 <!-- BADGE NAMA TOKO (MIRING ORANYE) -->
                                 <div

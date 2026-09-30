@@ -18,7 +18,11 @@ class RecapController extends Controller
     {
         $sevenDaysAgo = Carbon::now()->subDays(7);
 
-        $shops = Shop::with('user')
+        // 1. WAJIB: Hanya ambil toko yang pemiliknya (user) ber-role 'penjual'
+        $shops = Shop::whereHas('user', function ($q) {
+                $q->where('role', 'penjual');
+            })
+            ->with('user')
             ->withCount([
                 'products as new_products_count' => function ($q) use ($sevenDaysAgo) {
                     $q->where('created_at', '>=', $sevenDaysAgo);
@@ -26,7 +30,11 @@ class RecapController extends Controller
             ])
             ->get()
             ->map(function ($shop) use ($sevenDaysAgo) {
-                $lastChange = $shop->last_status_change_at;
+                // Parsing tanggal secara aman (mencegah error jika tipe data string)
+                $lastChange = $shop->last_status_change_at 
+                    ? Carbon::parse($shop->last_status_change_at) 
+                    : null;
+
                 $noRecentStatusChange = !$lastChange || $lastChange->lt($sevenDaysAgo);
                 $noNewProducts = ($shop->new_products_count ?? 0) === 0;
 
@@ -42,25 +50,27 @@ class RecapController extends Controller
                     'name'                  => $shop->name,
                     'status'                => $shop->status ?? ($shop->is_open ? 'active' : 'suspended'),
                     'is_open'               => (bool) $shop->is_open,
-                    'last_status_change_at' => $shop->last_status_change_at
-                        ? $shop->last_status_change_at->diffForHumans()
+                    'last_status_change_at' => $lastChange
+                        ? $lastChange->diffForHumans()
                         : 'Belum pernah',
                     'new_products_count'    => (int) ($shop->new_products_count ?? 0),
                     'activity_badge'        => $activityBadge,
                     'owner'                 => [
                         'id'       => $shop->user?->id,
-                        'username' => $shop->user?->username ?? '-',
+                        'username' => $shop->user?->username ?? $shop->user?->name ?? '-',
                         'whatsapp' => $shop->user?->whatsapp_number ?? '-',
                     ],
                 ];
             });
 
-        // Ringkasan Statistik
+        // 2. Ringkasan Statistik (Hanya Menghitung Produk Milik Penjual)
         $stats = [
             'total_active'      => $shops->where('activity_badge', 'active')->count(),
             'total_passive'     => $shops->where('activity_badge', 'passive')->count(),
             'total_suspended'   => $shops->where('activity_badge', 'suspended')->count(),
-            'new_products_week' => Product::where('created_at', '>=', $sevenDaysAgo)->count(),
+            'new_products_week' => Product::whereHas('shop.user', fn($q) => $q->where('role', 'penjual'))
+                                        ->where('created_at', '>=', $sevenDaysAgo)
+                                        ->count(),
         ];
 
         return Inertia::render('Admin/Recap/Index', [
@@ -74,6 +84,11 @@ class RecapController extends Controller
      */
     public function toggleSuspend(Shop $shop)
     {
+        // Proteksi Ganda: Mencegah perubahan status jika toko ternyata milik akun Admin
+        if ($shop->user && $shop->user->role === 'admin') {
+            return redirect()->back()->with('error', 'Toko milik akun Admin tidak dapat di-suspend.');
+        }
+
         $newStatus = ($shop->status === 'active' || empty($shop->status)) ? 'suspended' : 'active';
         $isSuspended = ($newStatus === 'suspended');
 

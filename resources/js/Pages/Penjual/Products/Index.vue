@@ -15,8 +15,20 @@ const isSuspended = computed(() => Boolean(page.props.auth.user?.is_suspended));
 // Helper URL Gambar dari root public/
 const getImageUrl = (imagePath) => {
     if (!imagePath) return null;
-    if (imagePath.startsWith('http')) return imagePath;
-    return imagePath.startsWith('/') ? imagePath : '/' + imagePath;
+    if (typeof imagePath === 'string' && imagePath.startsWith('http')) return imagePath;
+    const path = typeof imagePath === 'object' ? (imagePath.image_path || imagePath.url) : imagePath;
+    if (!path) return null;
+    return path.startsWith('/') ? path : '/' + path;
+};
+
+// Helper Pemanggilan Route Aman
+const safeRoute = (name, params = {}) => {
+    try {
+        return route(name, params);
+    } catch (e) {
+        console.warn(`Route [${name}] tidak ditemukan di Ziggy:`, e);
+        return '#';
+    }
 };
 
 // Helper fungsi toggle kategori untuk Array
@@ -46,14 +58,24 @@ const handleCreateGalleryChange = (e) => {
 };
 
 const submitCreate = () => {
-    if (isSuspended.value) return;
-    createForm.post(route('products.store'), {
+    if (isSuspended.value) {
+        alert('Akun kamu sedang dinonaktifkan.');
+        return;
+    }
+    
+    // 💡 ROUTE DIPERBAIKI MENJADI 'penjual.products.store'
+    createForm.post(safeRoute('penjual.products.store'), {
+        preserveScroll: true,
         onSuccess: () => {
             createForm.reset();
             createForm.category_ids = [];
             createForm.stock_status = 'ready';
             createForm.images = [];
+            alert('Produk berhasil ditambahkan!');
         },
+        onError: (errors) => {
+            console.error('Error Validasi:', errors);
+        }
     });
 };
 
@@ -92,8 +114,14 @@ const closeEditModal = () => {
 
 const submitUpdate = () => {
     if (isSuspended.value) return;
-    editForm.post(route('products.update', editingProduct.value.id), {
+
+    // 💡 ROUTE DIPERBAIKI MENJADI 'penjual.products.update'
+    editForm.post(safeRoute('penjual.products.update', editingProduct.value.id), {
+        preserveScroll: true,
         onSuccess: () => closeEditModal(),
+        onError: (errors) => {
+            console.error('Error Edit:', errors);
+        }
     });
 };
 
@@ -101,7 +129,7 @@ const submitUpdate = () => {
 const deleteGalleryImage = (imageId) => {
     if (isSuspended.value) return;
     if (confirm('Yakin ingin menghapus foto galeri ini?')) {
-        router.delete(route('product-images.destroy', imageId), {
+        router.delete(safeRoute('product-images.destroy', imageId), {
             preserveScroll: true,
             onSuccess: () => {
                 if (editingProduct.value && editingProduct.value.images) {
@@ -115,13 +143,16 @@ const deleteGalleryImage = (imageId) => {
 const deleteProduct = (id) => {
     if (isSuspended.value) return;
     if (confirm('Yakin ingin menghapus produk ini dari menu digital?')) {
-        useForm({}).delete(route('products.destroy', id));
+        // 💡 ROUTE DIPERBAIKI MENJADI 'penjual.products.destroy'
+        router.delete(safeRoute('penjual.products.destroy', id), {
+            preserveScroll: true,
+        });
     }
 };
 
 const toggleStatus = () => {
     if (isSuspended.value) return;
-    useForm({}).post(route('shop.toggle-status'), {
+    router.post(safeRoute('shop.toggle-status'), {}, {
         preserveScroll: true,
     });
 };
