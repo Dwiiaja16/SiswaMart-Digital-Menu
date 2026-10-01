@@ -136,6 +136,23 @@ const getImageUrl = (imagePath) => {
     if (typeof path === 'string' && (path.startsWith('http://') || path.startsWith('https://'))) return path;
     return typeof path === 'string' && path.startsWith('/') ? path : `/${path}`;
 };
+
+const getProductThumbnail = (product) => {
+    if (!product) return '';
+    if (product.image_url) return product.image_url;
+    
+    const path = product.image || (product.images && product.images.length > 0 ? (product.images[0].image_path || product.images[0]) : '');
+    if (!path) return '';
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    
+    // Jika path lama diawali dengan /products/ atau products/, arahkan ke /storage/
+    if (path.includes('products/')) {
+        const cleanPath = path.substring(path.indexOf('products/'));
+        return `/storage/${cleanPath}`;
+    }
+
+    return path.startsWith('/') ? path : `/${path}`;
+};
 </script>
 
 <template>
