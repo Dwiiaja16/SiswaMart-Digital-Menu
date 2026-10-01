@@ -625,8 +625,8 @@ const getImageUrl = (imagePath) => {
                                 >
                                     <!-- 1. Jika Ada Gambar Produk (Menampilkan Gambar Utama/Pertama) -->
                                     <img
-                                        v-if="product.image || (product.images && product.images.length > 0)"
-                                        :src="getImageUrl(product.image || product.images?.[0])"
+                                        v-if="getProductThumbnail(product)"
+                                        :src="getProductThumbnail(product)"
                                         :alt="product.name"
                                         loading="lazy"
                                         class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ease-out"

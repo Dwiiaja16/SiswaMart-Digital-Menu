@@ -64,26 +64,36 @@ const clearSearch = () => {
     showDropdown.value = false;
 };
 
-// --- LOGIKA AUTO-SLIDE GAMBAR PRODUK ---
-const activeSlides = ref({});
-let autoSlideInterval = null;
-
-const getProductImages = (product) => {
-    if (!product) return [];
-    if (product.images && product.images.length > 0) {
-        return product.images.map((img) => img.image_path);
+/// --- LOGIKA GAMBAR PRODUK (STATIS TAMPILAN UTAMA) ---
+const getImageUrl = (pathOrProduct) => {
+    if (!pathOrProduct) return '';
+    
+    // Jika parameter yang dimasukkan adalah object product
+    if (typeof pathOrProduct === 'object') {
+        if (pathOrProduct.image_url) return pathOrProduct.image_url;
+        if (pathOrProduct.image) return getImageUrl(pathOrProduct.image);
+        if (pathOrProduct.images && pathOrProduct.images.length > 0) {
+            return getImageUrl(pathOrProduct.images[0]);
+        }
+        return '';
     }
-    return product.image ? [product.image] : [];
+
+    // Jika parameter berupa string path/URL
+    const path = typeof pathOrProduct === 'object' ? (pathOrProduct.image_path || pathOrProduct.image) : pathOrProduct;
+    if (!path) return '';
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    
+    return path.startsWith('/') ? path : `/${path}`;
 };
 
-const getSlideIndex = (productId) => {
-    return activeSlides.value[productId] || 0;
-};
-
-const getImageUrl = (imagePath) => {
-    if (!imagePath) return '';
-    if (imagePath.startsWith('http')) return imagePath;
-    return imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
+const getProductThumbnail = (product) => {
+    if (!product) return '';
+    if (product.image_url) return product.image_url;
+    if (product.image) return getImageUrl(product.image);
+    if (product.images && product.images.length > 0) {
+        return getImageUrl(product.images[0].image_path || product.images[0]);
+    }
+    return '';
 };
 
 // FORMAT WA ADMIN UNTUK PENDAFTARAN SELLER BARU
@@ -298,8 +308,9 @@ onUnmounted(() => {
                                     <div class="flex items-center gap-3 min-w-0">
                                         <div class="w-11 h-11 rounded-xl bg-stone-100 border-2 border-[#362415] overflow-hidden shrink-0 shadow-[2px_2px_0px_#362415]">
                                             <img
-                                                v-if="getProductImages(product).length > 0"
-                                                :src="getImageUrl(getProductImages(product)[0])"
+                                                v-if="getProductThumbnail(product)"
+                                                :src="getProductThumbnail(product)"
+                                                :alt="product.name"
                                                 class="w-full h-full object-cover"
                                             />
                                             <div v-else class="w-full h-full flex items-center justify-center text-[8px] font-extrabold text-stone-400">
@@ -450,23 +461,16 @@ onUnmounted(() => {
                             :href="route('products.show', product.id)"
                             class="block relative w-full aspect-[4/5] bg-stone-100 overflow-hidden"
                         >
-                            <template v-if="getProductImages(product).length > 1">
-                                <img
-                                    :src="getImageUrl(getProductImages(product)[getSlideIndex(product.id)])"
-                                    :alt="product.name"
-                                    loading="lazy"
-                                    class="w-full h-full object-cover group-hover:scale-105 transition-all duration-500 ease-out"
-                                />
-                            </template>
-
+                            <!-- Single Static Image View -->
                             <img
-                                v-else-if="getProductImages(product).length === 1"
-                                :src="getImageUrl(getProductImages(product)[0])"
+                                v-if="getProductThumbnail(product)"
+                                :src="getProductThumbnail(product)"
                                 :alt="product.name"
                                 loading="lazy"
                                 class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ease-out"
                             />
 
+                            <!-- Fallback Jika Tidak Ada Gambar -->
                             <div
                                 v-else
                                 class="w-full h-full flex flex-col items-center justify-center text-stone-400 font-bold text-[9px] sm:text-[10px] uppercase gap-1 bg-[#fffaf3]"
@@ -477,6 +481,7 @@ onUnmounted(() => {
                                 Tanpa Foto
                             </div>
 
+                            <!-- Badge Nama Lapak -->
                             <div
                                 class="absolute bottom-0 left-0 bg-[#ea580c]/95 text-white pl-2 sm:pl-3 pr-4 sm:pr-6 py-1 flex items-center gap-1 z-10 shadow-sm"
                                 style="clip-path: polygon(0 0, 100% 0, 84% 100%, 0% 100%);"
@@ -486,6 +491,7 @@ onUnmounted(() => {
                                 </span>
                             </div>
 
+                            <!-- Status Buka/Tutup Toko -->
                             <div class="absolute top-2 right-2 z-10">
                                 <span
                                     :class="product.shop?.is_open ? 'bg-emerald-400 text-stone-900' : 'bg-rose-400 text-stone-900'"
@@ -500,6 +506,7 @@ onUnmounted(() => {
                             </div>
                         </Link>
 
+                        <!-- Informasi Produk -->
                         <div class="p-2.5 sm:p-3.5 flex flex-col flex-1 bg-white">
                             <Link :href="route('products.show', product.id)" class="block mb-1.5 sm:mb-2">
                                 <h3 class="font-black text-[#362415] text-xs sm:text-base leading-snug group-hover:text-[#F25C05] transition-colors line-clamp-2">
