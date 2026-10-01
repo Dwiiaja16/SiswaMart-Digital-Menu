@@ -139,20 +139,17 @@ const getImageUrl = (imagePath) => {
 
 const getProductThumbnail = (product) => {
     if (!product) return '';
-    if (product.image_url) return product.image_url;
-    
-    const path = product.image || (product.images && product.images.length > 0 ? (product.images[0].image_path || product.images[0]) : '');
-    if (!path) return '';
-    if (path.startsWith('http://') || path.startsWith('https://')) return path;
-    
-    // Jika path lama diawali dengan /products/ atau products/, arahkan ke /storage/
-    if (path.includes('products/')) {
-        const cleanPath = path.substring(path.indexOf('products/'));
-        return `/storage/${cleanPath}`;
+    // Prioritaskan gambar dari galeri (relasi ProductImage)
+    if (product.images && product.images.length > 0) {
+        return getImageUrl(product.images[0].image_path);
     }
-
-    return path.startsWith('/') ? path : `/${path}`;
+    // Fallback ke gambar utama tabel product
+    if (product.image) {
+        return getImageUrl(product.image);
+    }
+    return '';
 };
+
 </script>
 
 <template>

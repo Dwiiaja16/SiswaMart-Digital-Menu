@@ -84,7 +84,9 @@ class ProductController extends Controller
             $filename = time() . '_main_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
             // Simpan ke storage/app/public/products
             $path = $file->storeAs('products', $filename, 'public');
-            $mainImagePath = '/storage/' . $path;
+            $mainImagePath = $path;
+            
+            // $mainImagePath = '/storage/' . $path;
         }
 
         $product = Product::create([
