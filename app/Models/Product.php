@@ -27,49 +27,52 @@ class Product extends Model
         'views_count' => 'integer',
     ];
 
+    // Otomatis sertakan attribute 'image_url' di JSON/Inertia
+    protected $appends = ['image_url'];
+
     /**
-     * Relasi Many-to-Many ke model Category
+     * Accessor untuk membentuk URL gambar produk yang fleksibel di lokal & hosting
      */
+    public function getImageUrlAttribute()
+    {
+        if (!$this->image) {
+            return asset('images/default-product.png');
+        }
+
+        if (str_starts_with($this->image, 'http://') || str_starts_with($this->image, 'https://')) {
+            return $this->image;
+        }
+
+        // Pastikan format path diawali dengan slash '/'
+        $path = '/' . ltrim($this->image, '/');
+        return asset($path);
+    }
+
     public function categories(): BelongsToMany
     {
         return $this->belongsToMany(Category::class);
     }
 
-    /**
-     * Relasi BelongsTo ke model Category (Opsional/Fallback jika single category)
-     */
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
     }
 
-    /**
-     * Relasi ke model Shop
-     */
     public function shop(): BelongsTo
     {
         return $this->belongsTo(Shop::class);
     }
 
-    /**
-     * Relasi ke model Review
-     */
     public function reviews(): HasMany
     {
         return $this->hasMany(Review::class);
     }
 
-    /**
-     * Relasi ke model Notification
-     */
     public function notifications(): HasMany
     {
         return $this->hasMany(Notification::class);
     }
 
-    /**
-     * Relasi ke model ProductImage (Galeri Foto)
-     */
     public function images(): HasMany
     {
         return $this->hasMany(ProductImage::class)->orderBy('sort_order', 'asc');

@@ -11,13 +11,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class ProductController extends Controller
 {
-    /**
-     * Helper privat untuk memastikan penjual memiliki entri Toko/Shop
-     */
     private function getOrCreateShop($user)
     {
         $shop = $user->shop;
@@ -32,9 +29,6 @@ class ProductController extends Controller
         return $shop;
     }
 
-    /**
-     * Tampilkan daftar produk milik lapak penjual yang sedang login
-     */
     public function index()
     {
         $user = Auth::user();
@@ -43,8 +37,6 @@ class ProductController extends Controller
         }
 
         $shop = $this->getOrCreateShop($user);
-
-        // Load produk beserta relasi categories dan images
         $products = $shop->products()->with(['categories', 'images'])->latest()->get();
         $categories = Category::all();
 
@@ -55,17 +47,11 @@ class ProductController extends Controller
         ]);
     }
 
-    /**
-     * Tampilkan detail produk untuk pengunjung / pembeli (Fallback aman)
-     */
     public function show($id)
     {
         return app(CatalogController::class)->show($id);
     }
 
-    /**
-     * Tambah produk baru oleh Penjual
-     */
     public function store(Request $request)
     {
         $user = Auth::user();
@@ -73,7 +59,6 @@ class ProductController extends Controller
             return redirect()->route('login');
         }
 
-        // 1. Cek status suspend di paling awal
         if ($user->is_suspended) {
             return redirect()->back()->with('error', 'Akun kamu sedang dinonaktifkan (Suspend). Tidak dapat menambah produk.');
         }
@@ -92,13 +77,14 @@ class ProductController extends Controller
 
         $shop = $this->getOrCreateShop($user);
 
-        // 2. Simpan gambar utama (thumbnail) jika ada
+        // 1. Simpan gambar utama dengan Sanitasi Nama File & Disk Storage
         $mainImagePath = null;
         if ($request->hasFile('image')) {
             $file = $request->file('image');
-            $filename = time() . '_main_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
-            $file->move(public_path('products'), $filename);
-            $mainImagePath = '/products/' . $filename;
+            $filename = time() . '_main_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
+            // Simpan ke storage/app/public/products
+            $path = $file->storeAs('products', $filename, 'public');
+            $mainImagePath = '/storage/' . $path;
         }
 
         $product = Product::create([
@@ -110,26 +96,24 @@ class ProductController extends Controller
             'image'        => $mainImagePath,
         ]);
 
-        // 3. Simpan galeri foto tambahan ke tabel product_images
+        // 2. Simpan Galeri Foto Tambahan
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $index => $file) {
                 if ($file && $file->isValid()) {
-                    $filename = time() . '_' . $index . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
-                    $file->move(public_path('products'), $filename);
+                    $filename = time() . '_' . $index . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
+                    $path = $file->storeAs('products', $filename, 'public');
 
                     ProductImage::create([
                         'product_id' => $product->id,
-                        'image_path' => '/products/' . $filename,
+                        'image_path' => '/storage/' . $path,
                         'sort_order' => $index,
                     ]);
                 }
             }
         }
 
-        // 4. Attach array ID kategori ke tabel pivot category_product
         $product->categories()->attach($request->category_ids);
 
-        // 5. Buat notifikasi produk baru untuk Admin
         try {
             Notification::create([
                 'product_id' => $product->id,
@@ -143,9 +127,6 @@ class ProductController extends Controller
         return redirect()->back()->with('success', 'Produk berhasil ditambahkan!');
     }
 
-    /**
-     * Update produk oleh Penjual
-     */
     public function update(Request $request, Product $product)
     {
         $user = Auth::user();
@@ -155,12 +136,10 @@ class ProductController extends Controller
 
         $shop = $this->getOrCreateShop($user);
 
-        // 1. Cek otorisasi pemilik
         if ((int) $product->shop_id !== (int) $shop->id) {
             abort(403, 'Akses ditolak. Anda bukan pemilik produk ini.');
         }
 
-        // 2. Cek status suspend
         if ($user->is_suspended) {
             return redirect()->back()->with('error', 'Akun kamu sedang dinonaktifkan (Suspend). Tidak dapat mengubah produk.');
         }
@@ -184,50 +163,45 @@ class ProductController extends Controller
             'stock_status' => $request->stock_status,
         ];
 
-        // 3. Update gambar utama jika ada file baru
+        // Update gambar utama
         if ($request->hasFile('image')) {
-            if ($product->image && !str_starts_with($product->image, 'http')) {
-                $oldPath = public_path(ltrim($product->image, '/'));
-                if (file_exists($oldPath)) {
-                    @unlink($oldPath);
-                }
+            // Hapus berkas lama jika ada
+            if ($product->image && str_starts_with($product->image, '/storage/')) {
+                $relativeStoragePath = str_replace('/storage/', '', $product->image);
+                Storage::disk('public')->delete($relativeStoragePath);
             }
 
             $file = $request->file('image');
-            $filename = time() . '_main_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
-            $file->move(public_path('products'), $filename);
+            $filename = time() . '_main_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs('products', $filename, 'public');
 
-            $data['image'] = '/products/' . $filename;
+            $data['image'] = '/storage/' . $path;
         }
 
         $product->update($data);
 
-        // 4. Tambahkan foto galeri baru jika diunggah
+        // Tambah galeri foto baru
         if ($request->hasFile('images')) {
             $lastSortOrder = $product->images()->max('sort_order') ?? 0;
             foreach ($request->file('images') as $index => $file) {
                 if ($file && $file->isValid()) {
-                    $filename = time() . '_' . ($lastSortOrder + $index + 1) . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
-                    $file->move(public_path('products'), $filename);
+                    $filename = time() . '_' . ($lastSortOrder + $index + 1) . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
+                    $path = $file->storeAs('products', $filename, 'public');
 
                     ProductImage::create([
                         'product_id' => $product->id,
-                        'image_path' => '/products/' . $filename,
+                        'image_path' => '/storage/' . $path,
                         'sort_order' => $lastSortOrder + $index + 1,
                     ]);
                 }
             }
         }
 
-        // 5. Sync kategori
         $product->categories()->sync($request->category_ids);
 
         return redirect()->back()->with('success', 'Produk berhasil diperbarui!');
     }
 
-    /**
-     * Hapus satu foto galeri tertentu
-     */
     public function destroyImage(ProductImage $image)
     {
         $user = Auth::user();
@@ -237,12 +211,9 @@ class ProductController extends Controller
             abort(403, 'Akses ditolak.');
         }
 
-        // Hapus fisik berkas dari folder public secara aman
-        if ($image->image_path && !str_starts_with($image->image_path, 'http')) {
-            $filePath = public_path(ltrim($image->image_path, '/'));
-            if (file_exists($filePath)) {
-                @unlink($filePath);
-            }
+        if ($image->image_path && str_starts_with($image->image_path, '/storage/')) {
+            $relativeStoragePath = str_replace('/storage/', '', $image->image_path);
+            Storage::disk('public')->delete($relativeStoragePath);
         }
 
         $image->delete();
@@ -250,9 +221,6 @@ class ProductController extends Controller
         return redirect()->back()->with('success', 'Foto produk berhasil dihapus!');
     }
 
-    /**
-     * Hapus produk beserta seluruh foto galeri oleh Penjual
-     */
     public function destroy(Product $product)
     {
         $user = Auth::user();
@@ -262,35 +230,24 @@ class ProductController extends Controller
             abort(403, 'Akses ditolak.');
         }
 
-        // Hapus gambar utama
-        if ($product->image && !str_starts_with($product->image, 'http')) {
-            $oldPath = public_path(ltrim($product->image, '/'));
-            if (file_exists($oldPath)) {
-                @unlink($oldPath);
-            }
+        if ($product->image && str_starts_with($product->image, '/storage/')) {
+            $relativeStoragePath = str_replace('/storage/', '', $product->image);
+            Storage::disk('public')->delete($relativeStoragePath);
         }
 
-        // Hapus semua foto galeri tambahan di tabel product_images
         foreach ($product->images as $img) {
-            if ($img->image_path && !str_starts_with($img->image_path, 'http')) {
-                $imgPath = public_path(ltrim($img->image_path, '/'));
-                if (file_exists($imgPath)) {
-                    @unlink($imgPath);
-                }
+            if ($img->image_path && str_starts_with($img->image_path, '/storage/')) {
+                $relativeStoragePath = str_replace('/storage/', '', $img->image_path);
+                Storage::disk('public')->delete($relativeStoragePath);
             }
         }
 
-        // Detach pivot categories
         $product->categories()->detach();
-
         $product->delete();
 
         return redirect()->back()->with('success', 'Produk berhasil dihapus!');
     }
 
-    /**
-     * Toggle status lapak (buka/tutup)
-     */
     public function toggleShopStatus(Request $request)
     {
         $user = Auth::user();
@@ -308,9 +265,6 @@ class ProductController extends Controller
         return redirect()->back()->with('success', 'Status buka/tutup lapak berhasil diperbarui!');
     }
 
-    /**
-     * Penjual mengedit nama & deskripsi lapak miliknya sendiri
-     */
     public function updateShop(Request $request)
     {
         $user = Auth::user();
@@ -330,9 +284,6 @@ class ProductController extends Controller
         return redirect()->back()->with('success', 'Informasi lapak berhasil diperbarui!');
     }
 
-    /**
-     * Admin: Tampilkan semua produk katalog
-     */
     public function adminIndex(Request $request)
     {
         if (!auth()->check() || auth()->user()->role !== 'admin') {
@@ -358,36 +309,25 @@ class ProductController extends Controller
         ]);
     }
 
-    /**
-     * Admin: Hapus Produk Pelanggaran
-     */
     public function adminDestroy(Product $product)
     {
         if (!auth()->check() || auth()->user()->role !== 'admin') {
             abort(403, 'Aksi ini hanya untuk Admin.');
         }
 
-        // Hapus fisik gambar utama
-        if ($product->image && !str_starts_with($product->image, 'http')) {
-            $oldPath = public_path(ltrim($product->image, '/'));
-            if (file_exists($oldPath)) {
-                @unlink($oldPath);
-            }
+        if ($product->image && str_starts_with($product->image, '/storage/')) {
+            $relativeStoragePath = str_replace('/storage/', '', $product->image);
+            Storage::disk('public')->delete($relativeStoragePath);
         }
 
-        // Hapus fisik semua gambar galeri
         foreach ($product->images as $img) {
-            if ($img->image_path && !str_starts_with($img->image_path, 'http')) {
-                $imgPath = public_path(ltrim($img->image_path, '/'));
-                if (file_exists($imgPath)) {
-                    @unlink($imgPath);
-                }
+            if ($img->image_path && str_starts_with($img->image_path, '/storage/')) {
+                $relativeStoragePath = str_replace('/storage/', '', $img->image_path);
+                Storage::disk('public')->delete($relativeStoragePath);
             }
         }
 
-        // Detach relasi kategori
         $product->categories()->detach();
-
         $product->delete();
 
         return redirect()->back()->with('success', 'Produk berhasil dihapus dari katalog oleh Admin.');
