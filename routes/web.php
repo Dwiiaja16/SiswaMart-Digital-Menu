@@ -180,6 +180,16 @@ Route::get('/clear-cache-now', function () {
     return 'Cache Route & Config Server Berhasil Dibersihkan!';
 });
 
+// Rute Darurat untuk Menjalankan Migrasi di Hosting (Tanpa Terminal)
+Route::get('/run-migration-now', function () {
+    try {
+        \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+        return 'Sukses! Migrasi database berhasil dijalankan di hosting.';
+    } catch (\Exception $e) {
+        return 'Gagal / Terjadi Error: ' . $e->getMessage();
+    }
+});
+
 // Sitemap XML
 Route::get('/sitemap.xml', function () {
     $xml = '<?xml version="1.0" encoding="UTF-8"?>';
