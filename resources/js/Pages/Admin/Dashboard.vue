@@ -120,8 +120,9 @@ const props = defineProps({
                             </div>
                         </div>
 
+                        <!-- PERBAIKAN: Menggunakan 'href' biasa sebagai fallback jika route() gagal atau mendefinisikan route jika ziggy jalan. -->
                         <Link
-                            :href="route('admin.sellers.index')"
+                            :href="route ? route('admin.sellers.index') : '/admin/sellers'"
                             class="text-xs font-black text-orange-600 hover:underline uppercase flex items-center gap-1.5"
                         >
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">

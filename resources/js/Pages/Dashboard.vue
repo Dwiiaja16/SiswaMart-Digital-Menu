@@ -113,6 +113,20 @@ const waRegisterUrl = computed(() => {
 onUnmounted(() => {
     if (autoSlideInterval) clearInterval(autoSlideInterval);
 });
+
+const getProductThumbnail = (product) => {
+    if (!product) return '';
+    // Ambil gambar pertama dari galeri jika ada
+    if (product.images && product.images.length > 0) {
+        return getImageUrl(product.images[0].image_path || product.images[0].url);
+    }
+    // Jika tidak ada galeri, ambil gambar utama
+    if (product.image) {
+        return getImageUrl(product.image);
+    }
+    // Gambar default jika kosong (opsional)
+    return '/images/default-product.png'; 
+};
 </script>
 
 <template>
@@ -464,23 +478,16 @@ onUnmounted(() => {
                             :href="route('products.show', product.id)"
                             class="block relative w-full aspect-[4/5] bg-stone-100 overflow-hidden"
                         >
-                            <template v-if="getProductImages(product).length > 1">
-                                <img
-                                    :src="getImageUrl(getProductImages(product)[getSlideIndex(product.id)])"
-                                    :alt="product.name"
-                                    loading="lazy"
-                                    class="w-full h-full object-cover group-hover:scale-105 transition-all duration-500 ease-out"
-                                />
-                            </template>
-
+                            <!-- TAMPILAN GAMBAR STATIS (TIDAK ADA SLIDE) -->
                             <img
-                                v-else-if="getProductImages(product).length === 1"
+                                v-if="getProductImages(product).length > 0"
                                 :src="getImageUrl(getProductImages(product)[0])"
                                 :alt="product.name"
                                 loading="lazy"
-                                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ease-out"
+                                class="w-full h-full object-cover group-hover:scale-105 transition-all duration-500 ease-out"
                             />
 
+                            <!-- TAMPILAN JIKA PRODUK TIDAK PUNYA FOTO -->
                             <div
                                 v-else
                                 class="w-full h-full flex flex-col items-center justify-center text-stone-400 font-bold text-[9px] sm:text-[10px] uppercase gap-1 bg-[#fffaf3]"
@@ -491,6 +498,7 @@ onUnmounted(() => {
                                 Tanpa Foto
                             </div>
 
+                            <!-- LABEL NAMA TOKO (Tetap biarkan seperti asli Anda) -->
                             <div
                                 class="absolute bottom-0 left-0 bg-[#ea580c]/95 text-white pl-2 sm:pl-3 pr-4 sm:pr-6 py-1 flex items-center gap-1 z-10 shadow-sm"
                                 style="clip-path: polygon(0 0, 100% 0, 84% 100%, 0% 100%);"
@@ -500,6 +508,7 @@ onUnmounted(() => {
                                 </span>
                             </div>
 
+                            <!-- LABEL BUKA/TUTUP (Tetap biarkan seperti asli Anda) -->
                             <div class="absolute top-2 right-2 z-10">
                                 <span
                                     :class="product.shop?.is_open ? 'bg-emerald-400 text-stone-900' : 'bg-rose-400 text-stone-900'"
