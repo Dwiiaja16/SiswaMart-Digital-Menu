@@ -59,7 +59,7 @@ class Shop extends Model
     }
 
     /**
-     * Relasi balik ke model User (Pemilik Lapak / Penjual)
+     * Relasi balik ke model User (Pemilik Toko / Penjual)
      */
     public function user(): BelongsTo
     {
@@ -67,7 +67,7 @@ class Shop extends Model
     }
 
     /**
-     * Relasi ke model Product (Daftar Produk milik Lapak)
+     * Relasi ke model Product (Daftar Produk milik Toko)
      */
     public function products(): HasMany
     {

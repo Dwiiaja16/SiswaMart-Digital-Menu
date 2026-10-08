@@ -27,11 +27,10 @@ class ReviewController extends Controller
 
         $currentUser = Auth::user();
 
-        // 2. Blokir jika user yang login adalah pemilik lapak dari produk ini (Null-Safe Check)
-        if ($currentUser && isset($currentUser->shop) && $currentUser->shop) {
-            $isProductOwner = (int) $currentUser->shop->id === (int) $product->shop_id;
-            if ($isProductOwner) {
-                return redirect()->back()->with('error', 'Akses ditolak! Anda tidak dapat memberikan ulasan pada produk di lapak Anda sendiri.');
+        // 2. BLOKIR JIKA USER ADALAH ADMIN ATAU PENJUAL
+        if ($currentUser) {
+            if ($currentUser->role === 'admin' || $currentUser->role === 'penjual') {
+                return redirect()->back()->with('error', 'Akses ditolak! Admin dan Penjual tidak diizinkan memberi ulasan pada produk.');
             }
         }
 
@@ -52,27 +51,41 @@ class ReviewController extends Controller
             }
         }
 
-        // 5. Sensor Kata Kasar
+        // 5. Sensor Kata Kasar & Tahan Ulasan (Badwords)
         $badWords = [
-            'anjing', 'anj', 'anjrit', 'anjir', 'anjay',
-            'babi', 'monyet', 'kunyuk', 'bajingan', 'bangsat', 'brengsek',
-            'kampret', 'keparat', 'biadab', 'sialan', 'tai', 'taik',
-            'goblok', 'goblog', 'tolol', 'bego', 'dongo', 'idiot', 'bodoh',
-            'sinting', 'edan', 'kontol', 'memek', 'peler', 'pepek',
-            'pukimak', 'cukimay', 'ngentot', 'jancok', 'jancuk', 'asu', 'ndasmu',
-            'bedegong', 'belegug', 'gelo', 'silit', 'heunceut',
-            'fuck', 'fucking', 'shit', 'bullshit', 'bitch', 'asshole', 'dick',
-            'dumbass', 'bastard',
+            'anjing', 'anj', 'anjrit', 'anjir', 'anjay', 'anjg', 'anjuy',
+            'babi', 'bangkai', 'bajingan', 'bangsat', 'bastard', 'bitch',
+            'belegug', 'bedegong', 'biadab', 'bego', 'bodoh', 'bolot',
+            'brengsek', 'cabul', 'cukimay', 'cukima', 'congor',
+            'dongo', 'edan', 'etdah', 'gelo', 'goblok', 'goblog', 'gembel',
+            'heunceut', 'idiot', 'jancok', 'jancuk', 'jembut', 'jembot',
+            'kampret', 'keparat', 'kontol', 'kntl', 'kintil', 'kunyuk', 'kurang ajar',
+            'lintah', 'monyet', 'memek', 'mmk', 'maho', 'meki',
+            'ngentot', 'ngewe', 'njir', 'njay', 'ndasmu', 'nyemot',
+            'peler', 'pepek', 'ppk', 'pukimak', 'puki', 'puancing', 'perek',
+            'sinting', 'sialan', 'silit', 'setan',
+            'tai', 'taik', 'toket', 'tolol', 'tuyul', 'tempek',
+            'fuck', 'fucking', 'fucked', 'fucker', 'shit', 'shitty', 
+            'bullshit', 'asshole', 'dick', 'dickhead', 'dumbass', 
+            'cunt', 'pussy', 'whore', 'slut', 'motherfucker', 'ass', 'crap', 'prick'
         ];
 
-        $filterBadWords = function ($text) use ($badWords) {
+        $status = 'approved'; // Default langsung tayang jika bersih
+        $containsBadword = false;
+
+        $filterBadWords = function ($text) use ($badWords, &$status, &$containsBadword) {
             if (empty($text)) return '';
             foreach ($badWords as $word) {
-                $text = preg_replace_callback("/\b" . preg_quote($word, '/') . "\b/i", function ($matches) {
-                    $w = $matches[0];
-                    if (strlen($w) <= 2) return str_repeat('*', strlen($w));
-                    return substr($w, 0, 1) . str_repeat('*', strlen($w) - 2) . substr($w, -1);
-                }, $text);
+                if (stripos($text, $word) !== false) {
+                    $status = 'pending'; // Tahan ulasan jika ada badword
+                    $containsBadword = true;
+                    // Sensor kata dengan bintang
+                    $text = preg_replace_callback("/\b" . preg_quote($word, '/') . "\b/i", function ($matches) {
+                        $w = $matches[0];
+                        if (strlen($w) <= 2) return str_repeat('*', strlen($w));
+                        return substr($w, 0, 1) . str_repeat('*', strlen($w) - 2) . substr($w, -1);
+                    }, $text);
+                }
             }
             return $text;
         };
@@ -80,23 +93,27 @@ class ReviewController extends Controller
         $filteredName = $filterBadWords($rawReviewerName);
         $filteredComment = $filterBadWords($validated['comment']);
 
-        // 6. Susun payload simpan
+        // 6. Simpan ke database
         $reviewData = [
             'product_id'    => $product->id,
             'user_id'       => $currentUser?->id,
             'reviewer_name' => $filteredName,
             'rating'        => (int) $validated['rating'],
             'comment'       => $filteredComment,
+            'status'        => $status, 
         ];
 
-        // Cek secara otomatis apakah kolom 'is_approved' ada di DB lokal/server agar tidak crash
         if (Schema::hasColumn('reviews', 'is_approved')) {
-            $reviewData['is_approved'] = true;
+            $reviewData['is_approved'] = ($status === 'approved');
         }
 
         Review::create($reviewData);
 
-        return redirect()->back()->with('success', 'Terima kasih! Ulasan kamu berhasil ditambahkan.');
+        $message = $containsBadword 
+            ? 'Ulasan kamu mengandung kata sensitif dan sedang ditahan untuk ditinjau oleh Admin.' 
+            : 'Terima kasih! Ulasan kamu berhasil ditambahkan.';
+
+        return redirect()->back()->with('success', $message);
     }
 
     /**
@@ -114,7 +131,7 @@ class ReviewController extends Controller
         if (!$shop) {
             return Inertia::render('Penjual/Reviews/Index', [
                 'reviews' => [],
-                'error'   => 'Anda belum mendaftarkan lapak atau toko.',
+                'error'   => 'Anda belum mendaftarkan toko.',
             ]);
         }
 
@@ -128,5 +145,42 @@ class ReviewController extends Controller
         return Inertia::render('Penjual/Reviews/Index', [
             'reviews' => $reviews,
         ]);
+    }
+
+    // === FITUR MODERASI KHUSUS ADMIN ===
+
+    public function moderationIndex()
+    {
+        // Kirim ulasan pending dan semua ulasan untuk tab arsip
+        $pendingReviews = Review::where('status', 'pending')
+            ->with(['user', 'product.shop'])
+            ->latest()
+            ->get();
+            
+        $allReviews = Review::with(['user', 'product.shop'])
+            ->latest()
+            ->get();
+
+        return Inertia::render('Admin/Reviews/Moderation', [
+            'pendingReviews' => $pendingReviews,
+            'allReviews'     => $allReviews
+        ]);
+    }
+
+    public function approve(Review $review)
+    {
+        $updateData = ['status' => 'approved'];
+        if (Schema::hasColumn('reviews', 'is_approved')) {
+            $updateData['is_approved'] = true;
+        }
+
+        $review->update($updateData);
+        return redirect()->back()->with('success', 'Ulasan berhasil diizinkan dan kini tampil ke publik.');
+    }
+
+    public function destroy(Review $review)
+    {
+        $review->delete();
+        return redirect()->back()->with('success', 'Ulasan berhasil dihapus secara permanen.');
     }
 }

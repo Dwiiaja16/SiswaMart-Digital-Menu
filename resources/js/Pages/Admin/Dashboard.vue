@@ -46,10 +46,10 @@ const props = defineProps({
                         </p>
                     </div>
 
-                    <!-- Lapak Aktif -->
+                    <!-- Toko Aktif -->
                     <div class="bg-white border-2 sm:border-4 border-gray-900 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] sm:shadow-[6px_6px_0px_0px_rgba(17,24,39,1)] space-y-1 sm:space-y-2">
                         <div class="flex items-center justify-between">
-                            <span class="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-gray-400">Lapak Aktif</span>
+                            <span class="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-gray-400">Toko Aktif</span>
                             <div class="w-7 h-7 sm:w-9 sm:h-9 bg-emerald-100 border-2 border-gray-900 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]">
                                 <svg class="w-4 h-4 sm:w-5 sm:h-5 text-emerald-900" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5m0 0h4m-4 0V11m0 0l-3-3m3 3l3-3" />
@@ -137,7 +137,7 @@ const props = defineProps({
                             <thead>
                                 <tr class="border-b-2 border-gray-900 bg-stone-100 text-[10px] font-black uppercase tracking-wider text-gray-700">
                                     <th class="p-3 sm:p-3.5 rounded-l-xl">SISWA PENJUAL</th>
-                                    <th class="p-3 sm:p-3.5">Nama Lapak</th>
+                                    <th class="p-3 sm:p-3.5">Nama Toko</th>
                                     <th class="p-3 sm:p-3.5 rounded-r-xl">WhatsApp</th>
                                 </tr>
                             </thead>

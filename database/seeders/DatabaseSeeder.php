@@ -45,7 +45,7 @@ class DatabaseSeeder extends Seeder
             'whatsapp_number' => '081234567890',
         ]);
 
-        // 4. DATA LAPAK/USAHA SISWA
+        // 4. DATA TOKO/USAHA SISWA
         $shop = Shop::create([
             'user_id' => $seller->id, // Sekarang $seller->id sudah terdefinisi!
             'name' => 'Usaha Snack Dwi',

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Shop;
 use App\Models\Product;
+use App\Models\Review;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -24,12 +25,22 @@ class RecapController extends Controller
             })
             ->with('user')
             ->withCount([
+                'products as total_products_count',
                 'products as new_products_count' => function ($q) use ($sevenDaysAgo) {
                     $q->where('created_at', '>=', $sevenDaysAgo);
                 },
             ])
-            ->get()
-            ->map(function ($shop) use ($sevenDaysAgo) {
+            ->get();
+
+        $reviewCounts = Review::query()
+            ->join('products', 'reviews.product_id', '=', 'products.id')
+            ->whereIn('products.shop_id', $shops->pluck('id'))
+            ->selectRaw('products.shop_id, COUNT(reviews.id) as total_reviews_count')
+            ->groupBy('products.shop_id')
+            ->pluck('total_reviews_count', 'products.shop_id');
+
+        $shops = $shops
+            ->map(function ($shop) use ($sevenDaysAgo, $reviewCounts) {
                 // Parsing tanggal secara aman (mencegah error jika tipe data string)
                 $lastChange = $shop->last_status_change_at 
                     ? Carbon::parse($shop->last_status_change_at) 
@@ -38,9 +49,12 @@ class RecapController extends Controller
                 $noRecentStatusChange = !$lastChange || $lastChange->lt($sevenDaysAgo);
                 $noNewProducts = ($shop->new_products_count ?? 0) === 0;
 
+                $totalProducts = (int) ($shop->total_products_count ?? 0);
                 $activityBadge = 'active';
                 if ($shop->status === 'suspended' || ($shop->user && $shop->user->is_suspended)) {
                     $activityBadge = 'suspended';
+                } elseif ($totalProducts === 0) {
+                    $activityBadge = 'new';
                 } elseif ($noRecentStatusChange && $noNewProducts) {
                     $activityBadge = 'passive';
                 }
@@ -54,6 +68,8 @@ class RecapController extends Controller
                         ? $lastChange->diffForHumans()
                         : 'Belum pernah',
                     'new_products_count'    => (int) ($shop->new_products_count ?? 0),
+                    'total_products_count'  => $totalProducts,
+                    'total_reviews_count'   => (int) ($reviewCounts[$shop->id] ?? 0),
                     'activity_badge'        => $activityBadge,
                     'owner'                 => [
                         'id'       => $shop->user?->id,
@@ -98,7 +114,7 @@ class RecapController extends Controller
             'is_open'               => $isSuspended ? false : $shop->is_open,
         ]);
 
-        // Sinkronisasi status suspend ke User pemilik lapak
+        // Sinkronisasi status suspend ke User pemilik toko
         if ($shop->user) {
             $shop->user->update([
                 'is_suspended' => $isSuspended,
@@ -107,6 +123,6 @@ class RecapController extends Controller
 
         $label = $isSuspended ? 'dinonaktifkan (Suspend)' : 'diaktifkan kembali';
 
-        return redirect()->back()->with('success', "Lapak \"{$shop->name}\" berhasil {$label}.");
+        return redirect()->back()->with('success', "Toko \"{$shop->name}\" berhasil {$label}.");
     }
 }

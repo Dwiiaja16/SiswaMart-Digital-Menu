@@ -71,7 +71,7 @@ class ProfileController extends Controller
         }
 
         // Kembalikan ke Dashboard tanpa berpindah halaman
-        return redirect()->back()->with('success', 'Profil dan Lapak berhasil diperbarui!');
+        return redirect()->back()->with('success', 'Profil dan Toko berhasil diperbarui!');
     }
 
     /**
@@ -120,7 +120,7 @@ class ProfileController extends Controller
         $user->username = $request->username;
         $user->save();
 
-        // Update data toko / lapak
+        // Update data toko
         if ($user->shop) {
             $user->shop->update([
                 'name'            => $request->shop_name,
@@ -128,7 +128,7 @@ class ProfileController extends Controller
             ]);
         }
 
-        return redirect()->back()->with('success', 'Profil dan Lapak berhasil diperbarui!');
+        return redirect()->back()->with('success', 'Profil dan Toko berhasil diperbarui!');
     }
 
 }

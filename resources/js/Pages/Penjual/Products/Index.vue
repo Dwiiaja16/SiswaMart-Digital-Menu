@@ -12,13 +12,30 @@ const page = usePage();
 const isOpen = computed(() => Boolean(page.props.auth.user?.shop?.is_open));
 const isSuspended = computed(() => Boolean(page.props.auth.user?.is_suspended));
 
-// Helper URL Gambar dari root public/
+// Helper URL Gambar dari root public/ (Anti-Gagal untuk Data Lama & Baru)
 const getImageUrl = (imagePath) => {
     if (!imagePath) return null;
-    if (typeof imagePath === 'string' && imagePath.startsWith('http')) return imagePath;
-    const path = typeof imagePath === 'object' ? (imagePath.image_path || imagePath.url) : imagePath;
+    
+    // Ekstrak path jika berbentuk object (galeri) atau string (foto utama)
+    let path = typeof imagePath === 'object' ? (imagePath.image_path || imagePath.url) : imagePath;
+    
     if (!path) return null;
-    return path.startsWith('/') ? path : '/' + path;
+
+    // Jika URL eksternal atau base64, langsung gunakan
+    if (path.startsWith('http') || path.startsWith('data:image')) {
+        return path;
+    }
+
+    // Bersihkan garis miring di awal (misal '/products/...' menjadi 'products/...')
+    path = path.replace(/^\/+/, '');
+
+    // Jika path belum diawali dengan 'storage/', otomatis tambahkan
+    if (!path.startsWith('storage/')) {
+        return '/storage/' + path;
+    }
+
+    // Jika sudah benar (diawali 'storage/'), kembalikan dengan slash awal
+    return '/' + path;
 };
 
 // Helper Pemanggilan Route Aman
@@ -31,20 +48,11 @@ const safeRoute = (name, params = {}) => {
     }
 };
 
-// Helper fungsi toggle kategori untuk Array
-const toggleCategory = (targetForm, categoryId) => {
-    if (isSuspended.value) return;
-    const index = targetForm.category_ids.indexOf(categoryId);
-    if (index === -1) {
-        targetForm.category_ids.push(categoryId);
-    } else {
-        targetForm.category_ids.splice(index, 1);
-    }
-};
+
 
 // --- FORM TAMBAH PRODUK ---
 const createForm = useForm({
-    category_ids: [],
+    category_id: null,
     name: '',
     description: '',
     price: '',
@@ -63,12 +71,12 @@ const submitCreate = () => {
         return;
     }
     
-    // 💡 ROUTE DIPERBAIKI MENJADI 'penjual.products.store'
+    // ðŸ’¡ ROUTE DIPERBAIKI MENJADI 'penjual.products.store'
     createForm.post(safeRoute('penjual.products.store'), {
         preserveScroll: true,
         onSuccess: () => {
             createForm.reset();
-            createForm.category_ids = [];
+            createForm.category_id = null;
             createForm.stock_status = 'ready';
             createForm.images = [];
             alert('Produk berhasil ditambahkan!');
@@ -83,7 +91,7 @@ const submitCreate = () => {
 const editingProduct = ref(null);
 const editForm = useForm({
     _method: 'PUT',  // Spoofing PUT agar Multipart Form-Data terbaca oleh Laravel
-    category_ids: [],
+    category_id: null,
     name: '',
     description: '',
     price: '',
@@ -99,7 +107,7 @@ const handleEditGalleryChange = (e) => {
 const openEditModal = (product) => {
     if (isSuspended.value) return;
     editingProduct.value = product;
-    editForm.category_ids = product.categories ? product.categories.map(c => c.id) : [];
+    editForm.category_id = product.category_id ?? (product.categories?.[0]?.id ?? null);
     editForm.name = product.name;
     editForm.description = product.description || '';
     editForm.price = product.price;
@@ -115,7 +123,7 @@ const closeEditModal = () => {
 const submitUpdate = () => {
     if (isSuspended.value) return;
 
-    // 💡 ROUTE DIPERBAIKI MENJADI 'penjual.products.update'
+    // ðŸ’¡ ROUTE DIPERBAIKI MENJADI 'penjual.products.update'
     editForm.post(safeRoute('penjual.products.update', editingProduct.value.id), {
         preserveScroll: true,
         onSuccess: () => closeEditModal(),
@@ -143,7 +151,7 @@ const deleteGalleryImage = (imageId) => {
 const deleteProduct = (id) => {
     if (isSuspended.value) return;
     if (confirm('Yakin ingin menghapus produk ini dari menu digital?')) {
-        // 💡 ROUTE DIPERBAIKI MENJADI 'penjual.products.destroy'
+        // ðŸ’¡ ROUTE DIPERBAIKI MENJADI 'penjual.products.destroy'
         router.delete(safeRoute('penjual.products.destroy', id), {
             preserveScroll: true,
         });
@@ -187,24 +195,24 @@ const toggleStatus = () => {
                     </svg>
                 </div>
                 <div>
-                    <h4 class="font-black text-gray-900 text-sm uppercase tracking-wide">Akun / Lapak Anda Sedang Di-Suspend</h4>
+                    <h4 class="font-black text-gray-900 text-sm uppercase tracking-wide">Akun / Toko Anda Sedang Di-Suspend</h4>
                     <p class="text-xs font-bold text-gray-800 mt-1">
-                        Akses pengelolaan produk dan status lapak sementara dinonaktifkan oleh Admin. Seluruh produk Anda juga disembunyikan dari katalog publik. Silakan hubungi Admin SiswaMart jika ingin mengajukan pembukaan suspend.
+                        Akses pengelolaan produk dan status toko sementara dinonaktifkan oleh Admin. Seluruh produk Anda juga disembunyikan dari katalog publik. Silakan hubungi Admin SiswaMart jika ingin mengajukan pembukaan suspend.
                     </p>
                 </div>
             </div>
 
-            <!-- Card Status Operasional Lapak -->
+            <!-- Card Status Operasional Toko -->
             <div class="bg-amber-400 border-3 sm:border-4 border-gray-900 rounded-2xl sm:rounded-3xl p-5 sm:p-8 shadow-[4px_4px_0px_0px_rgba(17,24,39,1)] sm:shadow-[6px_6px_0px_0px_rgba(17,24,39,1)] flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div>
                     <span class="text-[9px] sm:text-[10px] font-black uppercase tracking-widest bg-gray-900 text-white px-2.5 py-1 rounded-md shadow-[1px_1px_0px_0px_rgba(17,24,39,1)]">
-                        Status Lapak Wirausaha
+                        Status Toko Wirausaha
                     </span>
                     <h1 class="text-2xl sm:text-3xl font-black uppercase tracking-tight text-gray-900 mt-2">
-                        {{ $page.props.auth.user?.shop?.name || 'Lapak Belum Dinamai' }}
+                        {{ $page.props.auth.user?.shop?.name || 'Toko Belum Dinamai' }}
                     </h1>
                     <p class="text-xs font-bold text-gray-900 mt-1 opacity-90">
-                        Atur status lapakmu agar pembeli tahu kapan jajanan siap dipesan via WhatsApp.
+                        Atur status tokomu agar pembeli tahu kapan jajanan siap dipesan via WhatsApp.
                     </p>
                 </div>
 
@@ -215,7 +223,7 @@ const toggleStatus = () => {
                     class="px-6 py-3.5 border-3 border-gray-900 text-gray-900 font-black text-xs uppercase tracking-widest rounded-2xl shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] active:scale-95 transition flex items-center gap-2 shrink-0"
                 >
                     <span class="w-3 h-3 rounded-full border border-gray-900" :class="isOpen ? 'bg-emerald-900 animate-pulse' : 'bg-rose-900'"></span>
-                    Status Lapak: {{ isSuspended ? 'DIKUNCI' : (isOpen ? 'BUKA' : 'TUTUP') }}
+                    Status Toko: {{ isSuspended ? 'DIKUNCI' : (isOpen ? 'BUKA' : 'TUTUP') }}
                 </button>
             </div>
 
@@ -246,14 +254,14 @@ const toggleStatus = () => {
                         </div>
                     </div>
 
-                    <!-- MULTI-SELECT KATEGORI JAJANAN (Tambah Produk) -->
+                    <!-- SINGLE-SELECT KATEGORI JAJANAN (Tambah Produk) -->
                     <div>
                         <div class="flex justify-between items-center mb-2.5">
                             <label class="block text-xs font-black uppercase tracking-wider text-gray-700">
                                 Kategori Jajanan
                             </label>
-                            <span class="text-[10px] font-black text-orange-600 bg-orange-100 border border-gray-900 px-2 py-0.5 rounded-md uppercase">
-                                Bisa Pilih Lebih Dari 1
+                            <span class="text-[10px] font-black text-emerald-700 bg-emerald-100 border border-gray-900 px-2 py-0.5 rounded-md uppercase">
+                                Pilih 1 Kategori Utama
                             </span>
                         </div>
 
@@ -261,9 +269,9 @@ const toggleStatus = () => {
                             <div
                                 v-for="cat in categories"
                                 :key="cat.id"
-                                @click="toggleCategory(createForm, cat.id)"
+                                @click="!isSuspended && (createForm.category_id = cat.id)"
                                 :class="[
-                                    createForm.category_ids.includes(cat.id) 
+                                    createForm.category_id === cat.id 
                                         ? 'bg-amber-400 border-gray-900 shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] translate-x-[-2px] translate-y-[-2px]' 
                                         : 'bg-stone-50 border-gray-900 hover:bg-stone-100 opacity-80',
                                     isSuspended ? 'cursor-not-allowed' : 'cursor-pointer'
@@ -275,17 +283,18 @@ const toggleStatus = () => {
                                 </span>
                                 
                                 <div 
-                                    :class="createForm.category_ids.includes(cat.id) ? 'bg-gray-900 text-white' : 'bg-stone-200 text-gray-400 group-hover:bg-stone-300'"
+                                    :class="createForm.category_id === cat.id ? 'bg-gray-900 text-white' : 'bg-stone-200 text-gray-400 group-hover:bg-stone-300'"
                                     class="w-5 h-5 rounded-lg border border-gray-900 flex items-center justify-center shrink-0 transition"
                                 >
-                                    <svg v-if="createForm.category_ids.includes(cat.id)" class="w-3.5 h-3.5 stroke-current" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                    <svg v-if="createForm.category_id === cat.id" class="w-3.5 h-3.5 stroke-current" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
                                         <polyline points="20 6 9 17 4 12"/>
                                     </svg>
                                 </div>
                             </div>
                         </div>
-                        <div v-if="createForm.errors.category_ids" class="text-rose-600 text-[10px] font-bold mt-1.5">
-                            {{ createForm.errors.category_ids }}
+
+                        <div v-if="createForm.errors.category_id" class="text-rose-600 text-[10px] font-bold mt-1.5">
+                            {{ createForm.errors.category_id }}
                         </div>
                     </div>
 
@@ -376,8 +385,8 @@ const toggleStatus = () => {
                     <div>
                         <button 
                             type="submit" 
-                            :disabled="createForm.processing || isSuspended || createForm.category_ids.length === 0" 
-                            :class="isSuspended || createForm.category_ids.length === 0 ? 'bg-gray-300 border-gray-400 text-gray-500 cursor-not-allowed' : 'bg-orange-500 hover:bg-orange-400 text-gray-900'"
+                            :disabled="createForm.processing || isSuspended || !createForm.category_id" 
+                            :class="isSuspended || !createForm.category_id ? 'bg-gray-300 border-gray-400 text-gray-500 cursor-not-allowed' : 'bg-orange-500 hover:bg-orange-400 text-gray-900'"
                             class="w-full sm:w-auto px-6 py-3.5 border-2 border-gray-900 rounded-xl font-black text-xs uppercase tracking-widest transition shadow-[3px_3px_0px_0px_rgba(17,24,39,1)] active:scale-95 flex items-center justify-center gap-2"
                         >
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -431,13 +440,12 @@ const toggleStatus = () => {
                                 <td class="py-3.5 px-3">
                                     <div class="flex flex-wrap gap-1">
                                         <span 
-                                            v-for="cat in product.categories" 
-                                            :key="cat.id" 
+                                            v-if="product.category"
                                             class="bg-stone-100 border border-gray-900 text-gray-900 text-[9px] font-black uppercase px-2 py-0.5 rounded-md"
                                         >
-                                            {{ cat.name }}
+                                            {{ product.category.name }}
                                         </span>
-                                        <span v-if="!product.categories || product.categories.length === 0" class="text-xs font-bold text-gray-400">-</span>
+                                        <span v-else class="text-xs font-bold text-gray-400">-</span>
                                     </div>
                                 </td>
 
@@ -521,26 +529,26 @@ const toggleStatus = () => {
                         </div>
                     </div>
 
-                    <!-- MULTI-SELECT KATEGORI JAJANAN (Modal Edit) -->
+                    <!-- SINGLE-SELECT KATEGORI JAJANAN (Modal Edit) -->
                     <div>
                         <div class="flex justify-between items-center mb-2">
                             <label class="block text-xs font-black uppercase tracking-wider text-gray-700">Kategori Jajanan</label>
-                            <span class="text-[9px] font-black text-orange-600 uppercase">Pilih Minimal 1</span>
+                            <span class="text-[9px] font-black text-emerald-700 bg-emerald-100 border border-gray-900 px-2 py-0.5 rounded-md uppercase">Pilih 1 Kategori Utama</span>
                         </div>
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
                             <div
                                 v-for="cat in categories"
                                 :key="cat.id"
-                                @click="toggleCategory(editForm, cat.id)"
-                                :class="editForm.category_ids.includes(cat.id) ? 'bg-amber-400 border-gray-900 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]' : 'bg-stone-50 border-gray-900 opacity-60'"
+                                @click="editForm.category_id = cat.id"
+                                :class="editForm.category_id === cat.id ? 'bg-amber-400 border-gray-900 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] translate-x-[-1px] translate-y-[-1px]' : 'bg-stone-50 border-gray-900 opacity-60 hover:opacity-80'"
                                 class="border-2 rounded-xl p-2.5 text-center font-black text-xs uppercase cursor-pointer select-none transition flex items-center justify-between"
                             >
                                 <span>{{ cat.name }}</span>
-                                <span v-if="editForm.category_ids.includes(cat.id)" class="text-[10px]">✓</span>
+                                <span v-if="editForm.category_id === cat.id" class="text-[10px]">âœ“</span>
                             </div>
                         </div>
-                        <div v-if="editForm.errors.category_ids" class="text-rose-600 text-[10px] font-bold mt-1">
-                            {{ editForm.errors.category_ids }}
+                        <div v-if="editForm.errors.category_id" class="text-rose-600 text-[10px] font-bold mt-1">
+                            {{ editForm.errors.category_id }}
                         </div>
                     </div>
 
@@ -611,7 +619,7 @@ const toggleStatus = () => {
                                     class="absolute top-1 right-1 bg-rose-600 text-white w-5 h-5 rounded-full text-[10px] font-black border border-gray-900 flex items-center justify-center cursor-pointer shadow-sm hover:scale-110 transition"
                                     title="Hapus Foto Ini"
                                 >
-                                    ✕
+                                    âœ•
                                 </button>
                             </div>
                         </div>
@@ -626,7 +634,7 @@ const toggleStatus = () => {
                         <button type="button" @click="closeEditModal" class="px-5 py-2.5 bg-stone-100 border-2 border-gray-900 text-gray-900 rounded-xl font-black text-xs uppercase tracking-wider hover:bg-stone-200 transition">
                             Batal
                         </button>
-                        <button type="submit" :disabled="editForm.processing || editForm.category_ids.length === 0" class="px-5 py-2.5 bg-orange-500 border-2 border-gray-900 text-gray-900 rounded-xl font-black text-xs uppercase tracking-wider hover:bg-orange-400 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] active:scale-95 transition">
+                        <button type="submit" :disabled="editForm.processing || !editForm.category_id" class="px-5 py-2.5 bg-orange-500 border-2 border-gray-900 text-gray-900 rounded-xl font-black text-xs uppercase tracking-wider hover:bg-orange-400 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] active:scale-95 transition disabled:opacity-50 disabled:cursor-not-allowed">
                             Simpan Perubahan
                         </button>
                     </div>

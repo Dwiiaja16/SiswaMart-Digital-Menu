@@ -21,7 +21,7 @@ class ProductController extends Controller
         if (!$shop) {
             $shop = Shop::create([
                 'user_id' => $user->id,
-                'name'    => 'Lapak ' . ($user->username ?? $user->name ?? 'Siswa'),
+                'name'    => 'Toko ' . ($user->username ?? $user->name ?? 'Siswa'),
                 'is_open' => true,
                 'status'  => 'active',
             ]);
@@ -37,7 +37,7 @@ class ProductController extends Controller
         }
 
         $shop = $this->getOrCreateShop($user);
-        $products = $shop->products()->with(['categories', 'images'])->latest()->get();
+        $products = $shop->products()->with(['category', 'images'])->latest()->get();
         $categories = Category::all();
 
         return Inertia::render('Penjual/Products/Index', [
@@ -64,33 +64,39 @@ class ProductController extends Controller
         }
 
         $request->validate([
-            'category_ids'   => 'required|array|min:1',
-            'category_ids.*' => 'exists:categories,id',
-            'name'           => 'required|string|max:255',
-            'description'    => 'nullable|string',
-            'price'          => 'required|numeric|min:0',
-            'stock_status'   => 'required|in:ready,pre_order,out_of_stock',
-            'image'          => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
-            'images'         => 'nullable|array',
-            'images.*'       => 'image|mimes:jpeg,png,jpg,webp|max:2048',
+            'category_id'  => 'required|exists:categories,id',
+            'name'         => 'required|string|max:255',
+            'description'  => 'nullable|string',
+            'price'        => 'required|numeric|min:0',
+            'stock_status' => 'required|in:ready,pre_order,out_of_stock',
+            'image'        => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+            'images'       => 'nullable|array',
+            'images.*'     => 'image|mimes:jpeg,png,jpg,webp|max:2048',
         ]);
 
         $shop = $this->getOrCreateShop($user);
 
-        // 1. Simpan gambar utama dengan Sanitasi Nama File & Disk Storage
+        // Simpan gambar utama
         $mainImagePath = null;
+
         if ($request->hasFile('image')) {
             $file = $request->file('image');
             $filename = time() . '_main_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
-            // Simpan ke storage/app/public/products
             $path = $file->storeAs('products', $filename, 'public');
-            $mainImagePath = $path;
-            
-            // $mainImagePath = '/storage/' . $path;
+            $mainImagePath = '/storage/' . $path; 
+        } 
+        elseif ($request->hasFile('images') && count($request->file('images')) > 0) {
+            $firstFile = $request->file('images')[0];
+            if ($firstFile && $firstFile->isValid()) {
+                $filename = time() . '_main_cover_' . Str::slug(pathinfo($firstFile->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $firstFile->getClientOriginalExtension();
+                $path = $firstFile->storeAs('products', $filename, 'public');
+                $mainImagePath = '/storage/' . $path;
+            }
         }
 
         $product = Product::create([
             'shop_id'      => $shop->id,
+            'category_id'  => $request->category_id,
             'name'         => $request->name,
             'description'  => $request->description,
             'price'        => $request->price,
@@ -98,7 +104,7 @@ class ProductController extends Controller
             'image'        => $mainImagePath,
         ]);
 
-        // 2. Simpan Galeri Foto Tambahan
+        // Simpan Galeri Foto Tambahan
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $index => $file) {
                 if ($file && $file->isValid()) {
@@ -113,8 +119,6 @@ class ProductController extends Controller
                 }
             }
         }
-
-        $product->categories()->attach($request->category_ids);
 
         try {
             Notification::create([
@@ -147,30 +151,30 @@ class ProductController extends Controller
         }
 
         $request->validate([
-            'category_ids'   => 'required|array|min:1',
-            'category_ids.*' => 'exists:categories,id',
-            'name'           => 'required|string|max:255',
-            'description'    => 'nullable|string',
-            'price'          => 'required|numeric|min:0',
-            'stock_status'   => 'required|in:ready,pre_order,out_of_stock',
-            'image'          => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
-            'images'         => 'nullable|array',
-            'images.*'       => 'image|mimes:jpeg,png,jpg,webp|max:2048',
+            'category_id'  => 'required|exists:categories,id',
+            'name'         => 'required|string|max:255',
+            'description'  => 'nullable|string',
+            'price'        => 'required|numeric|min:0',
+            'stock_status' => 'required|in:ready,pre_order,out_of_stock',
+            'image'        => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+            'images'       => 'nullable|array',
+            'images.*'     => 'image|mimes:jpeg,png,jpg,webp|max:2048',
         ]);
 
         $data = [
+            'category_id'  => $request->category_id,
             'name'         => $request->name,
             'description'  => $request->description,
             'price'        => $request->price,
             'stock_status' => $request->stock_status,
         ];
 
-        // Update gambar utama
         if ($request->hasFile('image')) {
-            // Hapus berkas lama jika ada
-            if ($product->image && str_starts_with($product->image, '/storage/')) {
-                $relativeStoragePath = str_replace('/storage/', '', $product->image);
-                Storage::disk('public')->delete($relativeStoragePath);
+            if ($product->image) {
+                $oldFilename = basename($product->image);
+                if ($oldFilename && Storage::disk('public')->exists('products/' . $oldFilename)) {
+                    Storage::disk('public')->delete('products/' . $oldFilename);
+                }
             }
 
             $file = $request->file('image');
@@ -182,7 +186,6 @@ class ProductController extends Controller
 
         $product->update($data);
 
-        // Tambah galeri foto baru
         if ($request->hasFile('images')) {
             $lastSortOrder = $product->images()->max('sort_order') ?? 0;
             foreach ($request->file('images') as $index => $file) {
@@ -199,8 +202,6 @@ class ProductController extends Controller
             }
         }
 
-        $product->categories()->sync($request->category_ids);
-
         return redirect()->back()->with('success', 'Produk berhasil diperbarui!');
     }
 
@@ -213,9 +214,11 @@ class ProductController extends Controller
             abort(403, 'Akses ditolak.');
         }
 
-        if ($image->image_path && str_starts_with($image->image_path, '/storage/')) {
-            $relativeStoragePath = str_replace('/storage/', '', $image->image_path);
-            Storage::disk('public')->delete($relativeStoragePath);
+        if ($image->image_path) {
+            $filename = basename($image->image_path);
+            if ($filename && Storage::disk('public')->exists('products/' . $filename)) {
+                Storage::disk('public')->delete('products/' . $filename);
+            }
         }
 
         $image->delete();
@@ -232,19 +235,22 @@ class ProductController extends Controller
             abort(403, 'Akses ditolak.');
         }
 
-        if ($product->image && str_starts_with($product->image, '/storage/')) {
-            $relativeStoragePath = str_replace('/storage/', '', $product->image);
-            Storage::disk('public')->delete($relativeStoragePath);
-        }
-
-        foreach ($product->images as $img) {
-            if ($img->image_path && str_starts_with($img->image_path, '/storage/')) {
-                $relativeStoragePath = str_replace('/storage/', '', $img->image_path);
-                Storage::disk('public')->delete($relativeStoragePath);
+        if ($product->image) {
+            $filename = basename($product->image);
+            if ($filename && Storage::disk('public')->exists('products/' . $filename)) {
+                Storage::disk('public')->delete('products/' . $filename);
             }
         }
 
-        $product->categories()->detach();
+        foreach ($product->images as $img) {
+            if ($img->image_path) {
+                $filename = basename($img->image_path);
+                if ($filename && Storage::disk('public')->exists('products/' . $filename)) {
+                    Storage::disk('public')->delete('products/' . $filename);
+                }
+            }
+        }
+
         $product->delete();
 
         return redirect()->back()->with('success', 'Produk berhasil dihapus!');
@@ -264,7 +270,7 @@ class ProductController extends Controller
             'last_status_change_at' => now(),
         ]);
 
-        return redirect()->back()->with('success', 'Status buka/tutup lapak berhasil diperbarui!');
+        return redirect()->back()->with('success', 'Status buka/tutup toko berhasil diperbarui!');
     }
 
     public function updateShop(Request $request)
@@ -283,7 +289,7 @@ class ProductController extends Controller
 
         $shop->update($validated);
 
-        return redirect()->back()->with('success', 'Informasi lapak berhasil diperbarui!');
+        return redirect()->back()->with('success', 'Informasi toko berhasil diperbarui!');
     }
 
     public function adminIndex(Request $request)
@@ -294,7 +300,7 @@ class ProductController extends Controller
 
         $search = $request->input('search');
 
-        $products = Product::with(['shop.user', 'categories', 'images'])
+        $products = Product::with(['shop.user', 'category', 'images'])
             ->when($search, function ($query, $search) {
                 $query->where('name', 'like', "%{$search}%")
                     ->orWhereHas('shop', function ($q) use ($search) {
@@ -317,19 +323,22 @@ class ProductController extends Controller
             abort(403, 'Aksi ini hanya untuk Admin.');
         }
 
-        if ($product->image && str_starts_with($product->image, '/storage/')) {
-            $relativeStoragePath = str_replace('/storage/', '', $product->image);
-            Storage::disk('public')->delete($relativeStoragePath);
-        }
-
-        foreach ($product->images as $img) {
-            if ($img->image_path && str_starts_with($img->image_path, '/storage/')) {
-                $relativeStoragePath = str_replace('/storage/', '', $img->image_path);
-                Storage::disk('public')->delete($relativeStoragePath);
+        if ($product->image) {
+            $filename = basename($product->image);
+            if ($filename && Storage::disk('public')->exists('products/' . $filename)) {
+                Storage::disk('public')->delete('products/' . $filename);
             }
         }
 
-        $product->categories()->detach();
+        foreach ($product->images as $img) {
+            if ($img->image_path) {
+                $filename = basename($img->image_path);
+                if ($filename && Storage::disk('public')->exists('products/' . $filename)) {
+                    Storage::disk('public')->delete('products/' . $filename);
+                }
+            }
+        }
+
         $product->delete();
 
         return redirect()->back()->with('success', 'Produk berhasil dihapus dari katalog oleh Admin.');

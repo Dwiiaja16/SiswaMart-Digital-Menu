@@ -39,14 +39,14 @@ const submitUpdate = () => {
         <!-- Header Modal -->
         <div class="flex justify-between items-center border-b-4 border-gray-900 pb-4">
             <h3 class="text-xl font-black uppercase tracking-tight text-gray-900">
-                EDIT PROFIL & <span class="text-orange-500">LAPAK</span>
+                EDIT PROFIL & <span class="text-orange-500">TOKO</span>
             </h3>
             <button 
                 type="button" 
                 @click="closeModal" 
                 class="text-gray-400 hover:text-gray-900 font-bold text-xl transition"
             >
-                ✕
+                âœ•
             </button>
         </div>
 
@@ -66,16 +66,16 @@ const submitUpdate = () => {
                 <div v-if="form.errors.username" class="text-rose-600 text-[10px] font-bold">{{ form.errors.username }}</div>
             </div>
 
-            <!-- 2. NAMA LAPAK USAHA -->
+            <!-- 2. NAMA TOKO USAHA -->
             <div class="space-y-1.5">
                 <label class="block text-xs font-black uppercase text-gray-700">
-                    NAMA LAPAK USAHA
+                    NAMA TOKO USAHA
                 </label>
                 <input 
                     v-model="form.shop_name" 
                     type="text" 
                     class="w-full bg-stone-50 border-2 border-gray-900 rounded-xl px-4 py-3 text-xs font-bold text-gray-900 focus:bg-white focus:ring-4 focus:ring-orange-500/20 focus:border-orange-500 transition" 
-                    placeholder="Contoh: Lapak Snack Dwi"
+                    placeholder="Contoh: Toko Snack Dwi"
                     required 
                 />
                 <div v-if="form.errors.shop_name" class="text-rose-600 text-[10px] font-bold">{{ form.errors.shop_name }}</div>

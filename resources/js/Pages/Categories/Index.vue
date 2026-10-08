@@ -70,7 +70,7 @@ const activePreset = computed(() => {
     return -1;
 });
 
-// ✅ FILTER & SORT DENGAN PRESERVE SCROLL
+// âœ… FILTER & SORT DENGAN PRESERVE SCROLL
 const applyFilters = () => {
     router.get(
         route("catalog.categories"),
@@ -362,7 +362,7 @@ const getProductThumbnail = (product) => {
                         <span>{{ showMobileFilters ? 'Sembunyikan Panel Filter' : 'Atur Pilihan Pas Kantong & Filter' }}</span>
                     </div>
                     <span class="w-6 h-6 rounded-full bg-[#F9C22E] border border-[#362415] flex items-center justify-center text-[10px]">
-                        {{ showMobileFilters ? '▲' : '▼' }}
+                        {{ showMobileFilters ? 'â–²' : 'â–¼' }}
                     </span>
                 </button>
             </div>
@@ -587,7 +587,7 @@ const getProductThumbnail = (product) => {
                                 class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#F9C22E] border border-[#362415] font-black text-[#362415]"
                             >
                                 {{ currentCategoryName }}
-                                <button @click="selectCategory('')" class="hover:text-rose-600 font-bold ml-0.5">✕</button>
+                                <button @click="selectCategory('')" class="hover:text-rose-600 font-bold ml-0.5">âœ•</button>
                             </span>
 
                             <span
@@ -596,7 +596,7 @@ const getProductThumbnail = (product) => {
                             >
                                 {{ minPrice ? 'Rp ' + Number(minPrice).toLocaleString('id-ID') : 'Rp 0' }} -
                                 {{ maxPrice ? 'Rp ' + Number(maxPrice).toLocaleString('id-ID') : 'Max' }}
-                                <button @click="minPrice = ''; maxPrice = ''; applyFilters();" class="hover:text-rose-600 font-bold ml-0.5">✕</button>
+                                <button @click="minPrice = ''; maxPrice = ''; applyFilters();" class="hover:text-rose-600 font-bold ml-0.5">âœ•</button>
                             </span>
 
                             <span
@@ -604,7 +604,7 @@ const getProductThumbnail = (product) => {
                                 class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white border border-[#362415] font-black text-[#362415]"
                             >
                                 "{{ search }}"
-                                <button @click="search = ''; applyFilters();" class="hover:text-rose-600 font-bold ml-0.5">✕</button>
+                                <button @click="search = ''; applyFilters();" class="hover:text-rose-600 font-bold ml-0.5">âœ•</button>
                             </span>
 
                             <span
@@ -612,7 +612,7 @@ const getProductThumbnail = (product) => {
                                 class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white border border-[#362415] font-black text-[#362415]"
                             >
                                 {{ selectedStatus === 'ready' ? 'Ready' : 'PO' }}
-                                <button @click="selectedStatus = ''; applyFilters();" class="hover:text-rose-600 font-bold ml-0.5">✕</button>
+                                <button @click="selectedStatus = ''; applyFilters();" class="hover:text-rose-600 font-bold ml-0.5">âœ•</button>
                             </span>
                         </div>
                     </div>
@@ -664,7 +664,7 @@ const getProductThumbnail = (product) => {
                                     style="clip-path: polygon(0 0, 100% 0, 84% 100%, 0% 100%);"
                                 >
                                     <span class="font-extrabold text-[9px] sm:text-[11px] tracking-wide truncate max-w-[80px] sm:max-w-[110px]">
-                                        {{ product.shop?.name || "Lapak Siswa" }}
+                                        {{ product.shop?.name || "Toko Siswa" }}
                                     </span>
                                 </div>
 
@@ -694,8 +694,8 @@ const getProductThumbnail = (product) => {
 
                                 <!-- Kategori & Status Stok -->
                                 <div class="flex items-center gap-1 text-[10px] sm:text-[11px] text-[#634C3C] font-semibold mb-2 sm:mb-3">
-                                    <span v-for="cat in product.categories?.slice(0, 1)" :key="cat.id" class="truncate">{{ cat.name }}</span>
-                                    <span v-if="product.categories?.length && product.stock_status" class="text-stone-300">•</span>
+                                    <span v-if="product.category" class="truncate">{{ product.category.name }}</span>
+                                    <span v-if="product.category && product.stock_status" class="text-stone-300">â€¢</span>
                                     <span :class="{
                                         'text-emerald-700 font-bold': product.stock_status === 'ready',
                                         'text-amber-700 font-bold': product.stock_status === 'pre_order',
@@ -762,7 +762,7 @@ const getProductThumbnail = (product) => {
 
             <!-- FOOTER -->
             <footer class="text-center pt-6 sm:pt-8 pb-4 text-[11px] sm:text-xs font-bold text-[#947d6b] space-y-1">
-                <p>SISWAMART • SMKN 11 BANDUNG</p>
+                <p>SISWAMART â€¢ SMKN 11 BANDUNG</p>
                 <p class="text-[10px] sm:text-[11px] font-semibold text-[#947d6b]/80">
                     Platform Digital Wirausaha Siswa Kreatif & Berdaya.
                 </p>

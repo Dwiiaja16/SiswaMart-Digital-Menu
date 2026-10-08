@@ -44,7 +44,7 @@ const formatDate = (dateString) => {
                     Laporan <span class="text-orange-500">Ulasan</span> Pembeli
                 </h2>
                 <span class="bg-amber-100 border-2 border-gray-900 text-gray-900 text-[10px] font-black uppercase px-2.5 py-1 rounded-md shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]">
-                    Reputasi Lapak
+                    Reputasi Toko
                 </span>
             </div>
 

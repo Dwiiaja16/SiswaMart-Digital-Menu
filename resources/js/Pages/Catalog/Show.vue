@@ -28,11 +28,21 @@ const getRelatedProductImage = (item) => {
     return null;
 };
 
+// Cek apakah pengguna adalah pemilik produk (tetap dipertahankan jika dibutuhkan)
 const isProductOwner = computed(() => {
     if (props.isOwner) return true;
     const userShopId = authUser.value?.shop?.id;
     const productShopId = props.product?.shop?.id || props.product?.shop_id;
     return userShopId && productShopId ? Number(userShopId) === Number(productShopId) : false;
+});
+
+// BARU: Cek apakah pengguna adalah Admin atau Penjual
+const isRestrictedUser = computed(() => {
+    if (!authUser.value) return false; // Pengunjung umum/pembeli biasa (belum login) -> BOLEH ulas
+    
+    const role = (authUser.value.role || '').toLowerCase();
+    // Jika role adalah admin/penjual atau user adalah pemilik produk
+    return role === 'admin' || role === 'penjual' || role === 'seller' || isProductOwner.value;
 });
 
 const reviewForm = useForm({
@@ -46,12 +56,13 @@ const ratingLabels = {
     2: "Biasa Aja",
     3: "Cukup Enak",
     4: "Enak Banget",
-    5: "Sangat Rekomendasi! 🔥",
+    5: "Sangat Rekomendasi! ðŸ”¥",
 };
 
 const submitReview = () => {
-    if (isProductOwner.value) {
-        alert("Kamu tidak dapat memberikan ulasan pada produk sendiri!");
+    // Diperbarui: Gunakan isRestrictedUser
+    if (isRestrictedUser.value) {
+        alert("Fitur ulasan hanya untuk pembeli/pengunjung umum!");
         return;
     }
     reviewForm.post(route("reviews.store", props.product.id), {
@@ -125,16 +136,16 @@ const whatsappLink = computed(() => {
     phone = String(phone).replace(/[^0-9]/g, '');
     if (phone.startsWith('0')) phone = '62' + phone.slice(1);
 
-    const shopName = props.product.shop?.name || 'Lapak Siswa';
+    const shopName = props.product.shop?.name || 'Toko Siswa';
     const productName = props.product.name || '';
     const price = Number(props.product.price || 0).toLocaleString('id-ID');
     const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
 
     const rawMessage = `Halo ${shopName}, saya mau pesan produk ini via SiswaMart:
 
-► Produk: ${productName}
-► Harga: Rp ${price}
-► Tautan: ${currentUrl}
+â–º Produk: ${productName}
+â–º Harga: Rp ${price}
+â–º Tautan: ${currentUrl}
 
 Apakah produk ini ready? Terima kasih!`;
 
@@ -267,16 +278,12 @@ const copyLink = async () => {
                             {{ product.stock_status === "ready" ? "Ready Stock" : product.stock_status === "pre_order" ? "Pre-Order" : "Habis" }}
                         </span>
 
-                        <!-- Category Chips List -->
+                        <!-- Category Chip -->
                         <div class="category-list flex flex-wrap items-center gap-1.5">
-                            <template v-if="product.categories && product.categories.length > 0">
-                                <span v-for="cat in product.categories" :key="cat.id" class="category-chip m-0">
-                                    {{ cat.name }}
-                                </span>
-                            </template>
-                            <span v-else class="category-chip m-0">
-                                {{ product.category?.name || product.category || "Kreatif" }}
+                            <span v-if="product.category" class="category-chip m-0">
+                                {{ product.category.name }}
                             </span>
+                            <span v-else class="category-chip m-0">Kreatif</span>
                         </div>
                     </div>
 
@@ -322,14 +329,14 @@ const copyLink = async () => {
                         </div>
                     </div>
 
-                    <!-- Lapak Info -->
+                    <!-- Toko Info -->
                     <div class="seller-card">
                         <div class="seller-icon">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
                         </div>
                         <div class="seller-copy">
                             <p class="seller-label">PEMILIK TOKO</p>
-                            <h2>{{ product.shop?.name || "Lapak Entrepreneur Siswa" }}</h2>
+                            <h2>{{ product.shop?.name || "Toko Entrepreneur Siswa" }}</h2>
                             <p :class="product.shop?.is_open !== false ? 'shop-open' : 'shop-closed'">
                                 <span></span>
                                 Toko {{ product.shop?.is_open !== false ? "Buka (Siap Melayani)" : "Sedang Tutup" }}
@@ -384,7 +391,9 @@ const copyLink = async () => {
                         <div class="review-header">
                             <div class="section-heading no-margin">
                                 <div class="heading-icon">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                                    </svg>
                                 </div>
                                 <div>
                                     <p>TESTIMONI</p>
@@ -407,25 +416,31 @@ const copyLink = async () => {
                                         </div>
                                     </div>
                                     <div class="review-rating">
-                                        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                                        <svg viewBox="0 0 20 20" fill="currentColor">
+                                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                                        </svg>
                                         {{ rev.rating }}/5
                                     </div>
                                 </div>
-                                <p class="review-comment">“{{ rev.comment }}”</p>
+                                <p class="review-comment">"{{ rev.comment }}"</p>
                             </div>
 
                             <div v-if="!product.reviews || product.reviews.length === 0" class="empty-reviews">
-                                <div class="star-icon">★</div>
+                                <div class="star-icon">
+                                    <svg class="w-6 h-6 text-amber-400 inline-block" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                                    </svg>
+                                </div>
                                 <strong>Belum ada ulasan</strong>
                                 <span>Jadilah yang pertama memberikan pendapat tentang produk karya siswa ini!</span>
                             </div>
                         </div>
                     </article>
-                </div>
+                </div> <!-- PENUTUP DARI <div class="content-main"> KINI SUDAH TERPASANG PRESISI DI SINI -->
 
                 <!-- Kolom Samping (Cara Pemesanan & Form Ulasan) -->
                 <aside class="content-side">
-                    <!-- KARTU PANDUAN CARA PEMESANAN (POSISI SEBELUM FORM ULASAN) -->
+                    <!-- KARTU PANDUAN CARA PEMESANAN -->
                     <article class="content-card reveal how-to-order-card">
                         <div class="section-heading">
                             <div class="heading-icon order-icon">
@@ -468,15 +483,29 @@ const copyLink = async () => {
                         </div>
                     </article>
 
-                    <!-- Form Ulasan / Notice Pemilik -->
-                    <div v-if="isProductOwner" class="notice-card owner-notice reveal">
-                        <div class="notice-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    <!-- KARTU PERINGATAN (Khusus Penjual & Admin) -->
+                    <div 
+                        v-if="isRestrictedUser" 
+                        class="bg-rose-50 border-2 sm:border-4 border-gray-900 rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-[4px_4px_0px_0px_rgba(17,24,39,1)] flex items-start sm:items-center gap-4 sm:gap-5 transition-all"
+                    >
+                        <div class="w-12 h-12 sm:w-14 sm:h-14 bg-rose-400 border-2 sm:border-3 border-gray-900 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)]">
+                            <svg class="w-7 h-7 sm:w-8 sm:h-8 text-gray-900" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                            </svg>
                         </div>
-                        <div>
-                            <p>AKSES PEMILIK</p>
-                            <h3>Lapak Kamu</h3>
-                            <span>Kamu tidak dapat mengisi ulasan pada produk di toko kamu sendiri.</span>
+
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2">
+                                <span class="inline-block px-2.5 py-0.5 bg-rose-200 border border-gray-900 text-[10px] font-black uppercase tracking-wider text-rose-950 rounded-md shadow-[1px_1px_0px_0px_rgba(17,24,39,1)]">
+                                    Akses Terbatas
+                                </span>
+                            </div>
+                            <h3 class="text-base sm:text-lg font-black uppercase tracking-tight text-gray-900">
+                                Akses Penjual & Admin
+                            </h3>
+                            <p class="text-xs font-bold text-gray-700 leading-relaxed">
+                                Fitur ulasan hanya diperuntukkan bagi pembeli / pengunjung umum. Akun Penjual dan Admin tidak dapat memberikan ulasan produk.
+                            </p>
                         </div>
                     </div>
 
@@ -542,11 +571,11 @@ const copyLink = async () => {
                     </div>
 
                     <Link
-                        v-if="product.categories && product.categories.length > 0"
-                        :href="route('catalog.categories', { category: product.categories[0].id })"
+                        v-if="product.category"
+                        :href="route('catalog.categories', { category: product.category.id })"
                         class="inline-flex items-center gap-1.5 text-xs sm:text-sm font-black text-[#362415] hover:text-[#F25C05] bg-white border-2 border-[#362415] px-3.5 py-1.5 sm:py-2 rounded-xl shadow-[3px_3px_0px_#362415] hover:shadow-[1px_1px_0px_#362415] hover:translate-x-[2px] hover:translate-y-[2px] transition-all self-start sm:self-auto"
                     >
-                        <span>Lihat Semua {{ product.categories[0].name }}</span>
+                        <span>Lihat Semua {{ product.category.name }}</span>
                         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
                         </svg>
@@ -588,11 +617,11 @@ const copyLink = async () => {
                                 style="clip-path: polygon(0 0, 100% 0, 84% 100%, 0% 100%);"
                             >
                                 <span class="font-extrabold text-[9px] sm:text-[11px] tracking-wide truncate max-w-[80px] sm:max-w-[110px]">
-                                    {{ product.shop?.name || "Lapak Siswa" }}
+                                    {{ product.shop?.name || "Toko Siswa" }}
                                 </span>
                             </div>
 
-                            <!-- Status Buka Lapak Top Right -->
+                            <!-- Status Buka Toko Top Right -->
                             <div class="absolute top-2 right-2 z-10">
                                 <span
                                     :class="item.shop?.is_open ? 'bg-[#bbf7d0] text-[#14532d]' : 'bg-[#fecdd3] text-[#881337]'"
@@ -612,8 +641,8 @@ const copyLink = async () => {
                             <div>
                                 <!-- Kategori & Status Stok -->
                                 <div class="flex items-center justify-between gap-1 text-[10px] sm:text-[11px] font-bold text-[#634C3C] mb-1.5">
-                                    <span v-if="item.categories && item.categories.length > 0" class="truncate font-black text-[#F25C05] uppercase tracking-wide">
-                                        {{ item.categories[0].name }}
+                                    <span v-if="item.category" class="truncate font-black text-[#F25C05] uppercase tracking-wide">
+                                        {{ item.category.name }}
                                     </span>
                                     <span v-else class="text-stone-400">Umum</span>
 

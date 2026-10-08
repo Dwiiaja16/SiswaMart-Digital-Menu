@@ -19,7 +19,6 @@ class HandleInertiaRequests extends Middleware
      */
     public function version(Request $request): ?string
     {
-        // Menggunakan hash dari manifest build atau string unik untuk cache busting
         if (file_exists($manifest = public_path('build/manifest.json'))) {
             return md5_file($manifest);
         }
@@ -34,10 +33,18 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        // Hitung jumlah ulasan yang tertahan (pending) khusus untuk role admin
+        $pendingReviewsCount = 0;
+        if ($request->user() && $request->user()->role === 'admin') {
+            $pendingReviewsCount = \App\Models\Review::where('status', 'pending')->count();
+        }
+
         return array_merge(parent::share($request), [
             'auth' => [
                 'user' => $request->user() ? $request->user()->load('shop') : null,
             ],
+            // Variabel global agar badge sidebar menyala otomatis
+            'pendingReviewsCount' => $pendingReviewsCount,
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),

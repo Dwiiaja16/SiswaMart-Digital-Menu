@@ -70,7 +70,7 @@ const getImageUrl = (imagePath) => {
                         <input 
                             v-model="search" 
                             type="text" 
-                            placeholder="Cari nama produk atau nama lapak..." 
+                            placeholder="Cari nama produk atau nama toko..." 
                             class="w-full bg-stone-50 border-2 border-gray-900 rounded-xl pl-10 pr-3.5 py-2.5 text-xs font-bold focus:border-orange-500 focus:ring-0" 
                         />
                     </div>
@@ -151,7 +151,7 @@ const getImageUrl = (imagePath) => {
                             <thead>
                                 <tr class="border-b-4 border-gray-900 text-xs font-black uppercase tracking-wider text-gray-500 pb-3">
                                     <th class="py-3 px-2">Produk</th>
-                                    <th class="py-3 px-2">Lapak / Penjual</th>
+                                    <th class="py-3 px-2">Toko / Penjual</th>
                                     <th class="py-3 px-2">Kategori</th>
                                     <th class="py-3 px-2">Harga</th>
                                     <th class="py-3 px-2">Stok</th>

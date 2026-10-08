@@ -13,7 +13,7 @@ class CatalogController extends Controller
     /**
      * Halaman Utama Katalog (Dashboard Publik)
      */
-    public function index(Request $request)
+    public function index(Request $request) 
     {
         $search = $request->input('search');
         $categoryId = $request->input('category');
@@ -24,10 +24,9 @@ class CatalogController extends Controller
             $query->where('name', 'like', "%{$search}%");
         }
 
+        // 1. FILTER KATEGORI: Langsung ke kolom category_id
         if (!empty($categoryId)) {
-            $query->whereHas('categories', function ($q) use ($categoryId) {
-                $q->where('categories.id', $categoryId);
-            });
+            $query->where('category_id', $categoryId);
         }
 
         $products = $this->transformProducts($query->get());
@@ -61,15 +60,13 @@ class CatalogController extends Controller
         if (!empty($search)) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                ->orWhere('description', 'like', "%{$search}%");
             });
         }
 
-        // 2. Filter Kategori
+        // 2. Filter Kategori: Langsung ke kolom category_id
         if (!empty($categoryId)) {
-            $query->whereHas('categories', function ($q) use ($categoryId) {
-                $q->where('categories.id', $categoryId);
-            });
+            $query->where('category_id', $categoryId);
         }
 
         // 3. Filter Rentang Harga
@@ -151,7 +148,7 @@ class CatalogController extends Controller
                 $sq->whereNull('status')->orWhere('status', '!=', 'suspended');
             });
         })
-        ->with(['shop.user', 'categories', 'images', 'reviews' => function ($q) {
+        ->with(['shop.user', 'category', 'images', 'reviews' => function ($q) {
             $q->where('is_approved', true)->latest();
         }]);
     }
@@ -168,24 +165,17 @@ class CatalogController extends Controller
                 $phone = '62' . substr($phone, 1);
             }
 
-            $shopName = $product->shop?->name ?? 'Lapak Siswa';
+            $shopName = $product->shop?->name ?? 'Toko Siswa';
             $message = "Halo {$shopName}, saya mau pesan *{$product->name}* seharga Rp " . number_format($product->price, 0, ',', '.') . " melalui SiswaMart. Apakah masih ada?";
             $waUrl = "https://wa.me/{$phone}?text=" . urlencode($message);
 
             $approvedReviews = $product->reviews ?? collect();
             $avgRating = $approvedReviews->avg('rating') ? round($approvedReviews->avg('rating'), 1) : null;
 
-            $imageUrl = null;
-            if ($product->image) {
-                if (str_starts_with($product->image, 'http')) {
-                    $imageUrl = $product->image;
-                } else {
-                    $path = ltrim($product->image, '/');
-                    if (!str_starts_with($path, 'products/')) {
-                        $path = 'products/' . $path;
-                    }
-                    $imageUrl = asset($path);
-                }
+            $imageUrl = $product->image;
+            if (!$imageUrl && $product->relationLoaded('images') && $product->images && $product->images->isNotEmpty()) {
+                $firstImg = $product->images->first();
+                $imageUrl = $firstImg?->image_path;
             }
 
             $avatarUrl = null;
@@ -202,7 +192,7 @@ class CatalogController extends Controller
                 'views_count'  => $product->views_count ?? 0,
                 'image'        => $imageUrl,
                 'images'       => $product->images ?? [],
-                'categories'   => $product->categories ?? [],
+                'category'     => $product->category ?? null,
 
                 'shop'         => [
                     'id'              => $product->shop?->id,
@@ -224,7 +214,7 @@ class CatalogController extends Controller
         });
     }
 
-    /**
+   /**
      * Halaman Detail Produk (Bypass Akses Admin & Null-Safe)
      */
     public function show($product)
@@ -233,14 +223,16 @@ class CatalogController extends Controller
         if (!($product instanceof Product)) {
             $product = Product::with([
                 'shop.user',
-                'categories',
+                'category',
                 'images',
-                'reviews' => fn($q) => $q->where('is_approved', true)->latest(),
+                'reviews' => fn($q) => $q->where(function ($query) {
+                    $query->where('status', 'approved')->orWhere('is_approved', true);
+                })->latest(),
             ])->find($product);
         } else {
             $product->loadMissing([
                 'shop.user',
-                'categories',
+                'category',
                 'images',
                 'reviews' => fn($q) => $q->where('is_approved', true)->latest(),
             ]);
@@ -252,16 +244,21 @@ class CatalogController extends Controller
         }
 
         // 2. CEK SUSPEND: Izinkan jika yang mengakses adalah ADMIN
-        $isAdmin = Auth::check() && Auth::user()->role === 'admin';
+        $currentUser = Auth::user();
+        $isAdmin = $currentUser && strtolower($currentUser->role ?? '') === 'admin';
         $isShopSuspended = $product->shop?->status === 'suspended';
         $isUserSuspended = (bool) ($product->shop?->user?->is_suspended ?? false);
 
         if (!$isAdmin && ($isUserSuspended || $isShopSuspended)) {
-            return redirect()->route('catalog.index')->with('error', 'Lapak penjual ini sedang dinonaktifkan.');
+            return redirect()->route('catalog.index')->with('error', 'Toko penjual ini sedang dinonaktifkan.');
         }
 
-        // 3. Tambah jumlah tayangan produk
-        $product->increment('views_count');
+        // 3. Tambah jumlah tayangan produk (Hanya jika BUKAN Admin atau Penjual)
+        $isRestrictedView = $currentUser && in_array(strtolower($currentUser->role ?? ''), ['admin', 'penjual', 'seller']);
+        
+        if (!$isRestrictedView) {
+            $product->increment('views_count');
+        }
 
         // 4. Format nomor WhatsApp
         $rawPhone = $product->shop?->user?->whatsapp_number ?? '';
@@ -270,14 +267,13 @@ class CatalogController extends Controller
             $phone = '62' . substr($phone, 1);
         }
 
-        $shopName = $product->shop?->name ?? 'Lapak Siswa';
+        $shopName = $product->shop?->name ?? 'Toko Siswa';
         $message = "Halo {$shopName}, saya mau pesan *{$product->name}* seharga Rp " . number_format($product->price, 0, ',', '.') . " melalui SiswaMart. Apakah masih ada?";
         $waUrl = "https://wa.me/{$phone}?text=" . urlencode($message);
 
         $approvedReviews = $product->reviews ?? collect();
         $avgRating = $approvedReviews->avg('rating') ? round($approvedReviews->avg('rating'), 1) : null;
 
-        $currentUser = Auth::user();
         $isOwner = false;
         if ($currentUser && $currentUser->shop && $product->shop) {
             $isOwner = (int) $currentUser->shop->id === (int) $product->shop->id;
@@ -288,6 +284,8 @@ class CatalogController extends Controller
             $hasReviewed = $product->reviews->contains('user_id', $currentUser->id);
         }
 
+        $mainImage = $product->image ?: ($product->images?->first()?->image_path ?? null);
+
         // 5. Format Data Produk untuk Frontend
         $productData = [
             'id'           => $product->id,
@@ -296,9 +294,9 @@ class CatalogController extends Controller
             'price'        => $product->price,
             'stock_status' => $product->stock_status,
             'views_count'  => $product->views_count ?? 0,
-            'image'        => $this->formatImageUrl($product->image),
+            'image'        => $this->formatImageUrl($mainImage),
             'images'       => $product->images ?? [],
-            'categories'   => $product->categories ?? [],
+            'category'     => $product->category ?? null,
             'shop'         => [
                 'id'              => $product->shop?->id,
                 'name'            => $shopName,
@@ -324,15 +322,15 @@ class CatalogController extends Controller
         ];
 
         // 6. Produk Rekomendasi
-        $categoryIds = $product->categories ? $product->categories->pluck('id')->toArray() : [];
+        $categoryId = $product->category_id;
         $relatedProducts = collect();
 
-        if (!empty($categoryIds)) {
+        if ($categoryId) {
             $relatedQuery = Product::where('id', '!=', $product->id)
-                ->whereHas('categories', fn($q) => $q->whereIn('categories.id', $categoryIds))
+                ->where('category_id', $categoryId)
                 ->whereHas('shop', fn($q) => $q->where('is_open', true)->where(fn($sq) => $sq->whereNull('status')->orWhere('status', '!=', 'suspended')))
                 ->whereHas('shop.user', fn($q) => $q->where('is_suspended', false))
-                ->with(['shop.user', 'images', 'categories', 'reviews' => fn($q) => $q->where('is_approved', true)->latest()])
+                ->with(['shop.user', 'images', 'category', 'reviews' => fn($q) => $q->where('is_approved', true)->latest()])
                 ->latest()
                 ->take(4);
 
@@ -356,15 +354,22 @@ class CatalogController extends Controller
             return null;
         }
 
-        if (str_starts_with($imagePath, 'http://') || str_starts_with($imagePath, 'https://')) {
-            return $imagePath;
+        $val = trim($imagePath);
+        $lower = strtolower($val);
+
+        if ($val === '' || $lower === 'null' || $lower === 'undefined') {
+            return null;
         }
 
-        $path = ltrim($imagePath, '/');
-        if (!str_starts_with($path, 'storage/') && !str_starts_with($path, 'products/')) {
-            $path = 'products/' . $path;
+        if (str_starts_with($val, 'http://') || str_starts_with($val, 'https://') || str_starts_with($val, 'data:image')) {
+            return $val;
         }
 
-        return asset($path);
+        $filename = basename($val);
+        if (empty($filename) || strtolower($filename) === 'null' || strtolower($filename) === 'undefined') {
+            return null;
+        }
+
+        return '/storage/products/' . $filename;
     }
 }

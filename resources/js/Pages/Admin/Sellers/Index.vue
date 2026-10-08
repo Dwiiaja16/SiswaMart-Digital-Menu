@@ -110,7 +110,7 @@ const toggleSuspend = (sellerId) => {
 
 // Hapus Penjual
 const deleteSeller = (sellerId) => {
-    if (confirm("Apakah Anda yakin ingin menghapus akun penjual ini beserta profil dan lapaknya?")) {
+    if (confirm("Apakah Anda yakin ingin menghapus akun penjual ini beserta profil dan tokonya?")) {
         router.delete(route("admin.sellers.destroy", sellerId), {
             preserveScroll: true,
         });
@@ -280,7 +280,7 @@ const getPhotoUrl = (photoPath) => {
                                 <tr class="border-b-2 border-gray-900 bg-stone-100 text-[10px] font-black uppercase tracking-wider text-gray-700">
                                     <th class="p-3.5 rounded-l-xl">SISWA PENJUAL</th>
                                     <th class="p-3.5">KELAS & NISN</th>
-                                    <th class="p-3.5">NAMA LAPAK USAHA</th>
+                                    <th class="p-3.5">NAMA TOKO USAHA</th>
                                     <th class="p-3.5">WHATSAPP</th>
                                     <th class="p-3.5">STATUS AKUN</th>
                                     <th class="p-3.5 text-center rounded-r-xl">AKSI</th>
@@ -382,7 +382,7 @@ const getPhotoUrl = (photoPath) => {
                         <h3 class="font-black text-xl text-gray-900 uppercase tracking-tight">DETAIL PROFIL PENJUAL</h3>
                     </div>
                     <button @click="closeDetail" class="w-9 h-9 bg-rose-400 hover:bg-rose-300 border-2 border-gray-900 rounded-xl font-black text-base text-gray-900 shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] active:scale-95 transition flex items-center justify-center">
-                        ✕
+                        âœ•
                     </button>
                 </div>
 
@@ -433,9 +433,9 @@ const getPhotoUrl = (photoPath) => {
                         </div>
                     </div>
 
-                    <!-- Lapak Usaha -->
+                    <!-- Toko Usaha -->
                     <div class="bg-stone-50 border-2 border-gray-900 p-4 rounded-2xl shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] space-y-1">
-                        <span class="block text-[10px] font-black text-gray-400 uppercase tracking-wider">Nama Lapak Usaha</span>
+                        <span class="block text-[10px] font-black text-gray-400 uppercase tracking-wider">Nama Toko Usaha</span>
                         <span class="font-black text-base text-gray-900 uppercase block">{{ selectedSeller.shop?.name || '-' }}</span>
                     </div>
 
@@ -460,7 +460,7 @@ const getPhotoUrl = (photoPath) => {
             <div class="bg-white border-4 border-gray-900 rounded-3xl max-w-xl w-full p-6 shadow-[8px_8px_0px_0px_rgba(17,24,39,1)] space-y-4 max-h-[90vh] overflow-y-auto">
                 <div class="flex justify-between items-center border-b-2 border-gray-100 pb-3">
                     <h3 class="font-black text-lg text-gray-900 uppercase">EDIT DATA PENJUAL</h3>
-                    <button @click="closeEdit" class="text-gray-900 font-black text-xl hover:text-rose-600">✕</button>
+                    <button @click="closeEdit" class="text-gray-900 font-black text-xl hover:text-rose-600">âœ•</button>
                 </div>
 
                 <form @submit.prevent="submitEdit" class="space-y-3 text-left">

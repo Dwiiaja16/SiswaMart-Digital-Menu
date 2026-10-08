@@ -75,7 +75,7 @@ class SellerController extends Controller
 
         Shop::create([
             'user_id' => $user->id,
-            'name'    => 'Lapak ' . $validated['full_name'],
+            'name'    => 'Toko ' . $validated['full_name'],
             'is_open' => true,
         ]);
 

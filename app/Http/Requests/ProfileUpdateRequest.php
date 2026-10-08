@@ -20,7 +20,7 @@ class ProfileUpdateRequest extends FormRequest
             'username'        => ['required', 'string', 'max:50', 'unique:users,username,' . $this->user()->id],
             'whatsapp_number' => ['required', 'string', 'max:20'],
             'email'           => ['nullable', 'string', 'email', 'max:255', 'unique:users,email,' . $this->user()->id],
-            'name'            => ['nullable', 'string', 'max:255'], // Tambahkan ini (Nama Lapak)
+            'name'            => ['nullable', 'string', 'max:255'], // Tambahkan ini (Nama Toko)
             'shop_name'       => ['nullable', 'string', 'max:255'], // Tambahkan ini
         ];
     }

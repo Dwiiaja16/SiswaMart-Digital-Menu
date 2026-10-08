@@ -32,7 +32,7 @@ const faqs = [
     },
     {
         q: "Saya siswa SMKN 11 Bandung dan mau jualan juga, gimana caranya?",
-    a: "Keren banget! Kamu bisa klik tombol 'Daftar Penjual via WA' di beranda untuk terhubung langsung dengan Admin SiswaMart. Admin akan membantu mendaftarkan dan memverifikasi akun lapakmu agar kamu bisa langsung berjualan."
+    a: "Keren banget! Kamu bisa klik tombol 'Daftar Penjual via WA' di beranda untuk terhubung langsung dengan Admin SiswaMart. Admin akan membantu mendaftarkan dan memverifikasi akun tokomu agar kamu bisa langsung berjualan."
     },
 ];
 </script>
@@ -427,7 +427,7 @@ const faqs = [
                         <div class="flex items-center gap-1.5">
                             <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
                             <span class="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-black text-[10px] sm:text-xs border border-rose-300 uppercase">
-                                Lapak Tutup
+                                Toko Tutup
                             </span>
                         </div>
                         <h4 class="font-extrabold text-xs sm:text-sm text-[#362415]">Sedang Istirahat</h4>
@@ -514,7 +514,7 @@ const faqs = [
 
             <!-- FOOTER NOTE -->
             <footer class="text-center pt-6 sm:pt-8 pb-4 text-[11px] sm:text-xs font-bold text-[#947d6b] space-y-1">
-                <p>SISWAMART • SMKN 11 BANDUNG</p>
+                <p>SISWAMART â€¢ SMKN 11 BANDUNG</p>
                 <p class="text-[10px] sm:text-[11px] font-semibold text-[#947d6b]/80">
                     Platform Digital Wirausaha Siswa Kreatif & Berdaya.
                 </p>

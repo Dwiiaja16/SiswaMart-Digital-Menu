@@ -49,7 +49,7 @@ class GoogleController extends Controller
         } catch (\Exception $e) {
             return redirect()->route('login')->with(
                 'error', 
-                'Akses Login dibatasi. Halaman ini khusus untuk Pengelola Lapak (Penjual) dan Admin.'
+                'Akses Login dibatasi. Halaman ini khusus untuk Pengelola Toko (Penjual) dan Admin.'
             );
         }
     }

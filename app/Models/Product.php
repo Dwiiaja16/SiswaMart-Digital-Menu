@@ -5,8 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class Product extends Model
 {
@@ -14,6 +14,7 @@ class Product extends Model
 
     protected $fillable = [
         'shop_id',
+        'category_id', // Kunci 1 Kategori
         'name',
         'description',
         'price',
@@ -27,32 +28,59 @@ class Product extends Model
         'views_count' => 'integer',
     ];
 
-    // Otomatis sertakan attribute 'image_url' di JSON/Inertia
     protected $appends = ['image_url'];
 
-    /**
-     * Accessor untuk membentuk URL gambar produk yang fleksibel di lokal & hosting
-     */
+    protected function image(): Attribute
+    {
+        return Attribute::make(
+            get: function ($value) {
+                if (empty($value)) return null;
+
+                $val = trim((string) $value);
+                $lower = strtolower($val);
+
+                if ($val === '' || $lower === 'null' || $lower === 'undefined') return null;
+                if (str_starts_with($val, 'http://') || str_starts_with($val, 'https://') || str_starts_with($val, 'data:image')) return $val;
+
+                $filename = basename($val);
+                if (empty($filename) || strtolower($filename) === 'null' || strtolower($filename) === 'undefined') return null;
+
+                return '/storage/products/' . $filename;
+            },
+            set: function ($value) {
+                if (empty($value)) return null;
+
+                $val = trim((string) $value);
+                $lower = strtolower($val);
+
+                if ($val === '' || $lower === 'null' || $lower === 'undefined') return null;
+                if (str_starts_with($val, 'http://') || str_starts_with($val, 'https://') || str_starts_with($val, 'data:image')) return $val;
+
+                $filename = basename($val);
+                if (empty($filename) || strtolower($filename) === 'null' || strtolower($filename) === 'undefined') return null;
+
+                return '/storage/products/' . $filename;
+            }
+        );
+    }
+
     public function getImageUrlAttribute()
     {
-        if (!$this->image) {
-            return asset('images/default-product.png');
-        }
-
-        if (str_starts_with($this->image, 'http://') || str_starts_with($this->image, 'https://')) {
+        if ($this->image) {
             return $this->image;
         }
 
-        // Pastikan format path diawali dengan slash '/'
-        $path = '/' . ltrim($this->image, '/');
-        return asset($path);
+        if ($this->relationLoaded('images') && $this->images->isNotEmpty()) {
+            $first = $this->images->first();
+            if ($first && $first->image_path) {
+                return $first->image_path;
+            }
+        }
+
+        return asset('images/default-product.png');
     }
 
-    public function categories(): BelongsToMany
-    {
-        return $this->belongsToMany(Category::class);
-    }
-
+    // Relasi Tunggal (1 Produk Memiliki 1 Kategori)
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);

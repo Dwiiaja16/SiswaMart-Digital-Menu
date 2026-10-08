@@ -8,6 +8,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReviewController;
+use App\Http\Controllers\Seller\ReportController;
 use App\Http\Controllers\SellerController;
 use App\Models\Category;
 use App\Models\Product;
@@ -75,7 +76,7 @@ Route::middleware(['auth'])->group(function () {
             if (!$shop) {
                 $shop = Shop::create([
                     'user_id' => $user->id,
-                    'name'    => 'Lapak ' . ($user->username ?? $user->name),
+                    'name'    => 'Toko ' . ($user->username ?? $user->name),
                     'is_open' => true,
                 ]);
             }
@@ -94,7 +95,8 @@ Route::middleware(['auth'])->group(function () {
                         ? number_format(Review::whereIn('product_id', $productIds)->avg('rating'), 1)
                         : '0.0',
                 ],
-                'recentProducts' => $shop->products()->latest()->take(4)->get(),
+                // PERBAIKAN: Mengganti 'categories' menjadi 'category'
+                'recentProducts' => $shop->products()->with(['images', 'category'])->latest()->take(4)->get(),
                 'recentReviews'  => Review::whereIn('product_id', $productIds)
                     ->with('product')
                     ->latest()
@@ -108,6 +110,9 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/products', [ProductController::class, 'store'])->name('products.store');
         Route::match(['post', 'put', 'patch'], '/products/{product}', [ProductController::class, 'update'])->name('products.update');
         Route::delete('/products/{product}', [ProductController::class, 'destroy'])->name('products.destroy');
+
+        // Laporan Performa Toko
+        Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
     });
 
     // Pengaturan Toko & Ulasan Penjual
@@ -124,7 +129,7 @@ Route::middleware(['auth'])->group(function () {
             return Inertia::render('Admin/Dashboard', [
                 'stats' => [
                     'totalSellers'    => User::where('role', 'penjual')->count(),
-                    'activeShops'     => Shop::where('is_open', true)->count(),
+                    'activeShops'     => \App\Models\User::where('role', 'penjual')->count(),
                     'totalProducts'   => Product::count(),
                     'totalCategories' => Category::count(),
                 ],
@@ -148,13 +153,18 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/products', [ProductController::class, 'adminIndex'])->name('products.index');
         Route::delete('/products/{product}', [ProductController::class, 'adminDestroy'])->name('products.destroy');
 
-        // Rekapitulasi & Suspend Lapak
+        // Rekapitulasi & Suspend Toko
         Route::get('/recap', [RecapController::class, 'index'])->name('recap');
         Route::patch('/shops/{shop}/toggle-suspend', [RecapController::class, 'toggleSuspend'])->name('shops.toggle-suspend');
 
         // Notifikasi Admin
         Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
         Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
+
+        // Moderasi Ulasan Admin
+        Route::get('/moderasi-ulasan', [ReviewController::class, 'moderationIndex'])->name('reviews.moderation');
+        Route::patch('/moderasi-ulasan/{review}/approve', [ReviewController::class, 'approve'])->name('reviews.approve');
+        Route::delete('/moderasi-ulasan/{review}', [ReviewController::class, 'destroy'])->name('reviews.destroy');
     });
 
     // Profil User & OAuth Disconnect
@@ -206,7 +216,6 @@ Route::get('/sitemap.xml', function () {
 
 // Webhook Auto-Deploy GitHub
 Route::post('/deploy-siswamart-secret-11', function () {
-    // Jalankan git pull & bersihkan cache
     $output = shell_exec('cd ' . base_path() . ' && git pull origin main 2>&1');
     
     \Illuminate\Support\Facades\Artisan::call('route:clear');
@@ -218,6 +227,17 @@ Route::post('/deploy-siswamart-secret-11', function () {
         'message' => 'Auto deploy berhasil!',
         'output' => $output
     ]);
+});
+
+// Rute Setup Fitur Moderasi Ulasan
+Route::get('/setup-moderasi-ulasan', function () {
+    if (!\Illuminate\Support\Facades\Schema::hasColumn('reviews', 'status')) {
+        \Illuminate\Support\Facades\Schema::table('reviews', function (\Illuminate\Database\Schema\Blueprint $table) {
+            $table->string('status')->default('approved')->after('comment');
+        });
+        return 'SUKSES: Fitur moderasi berhasil ditambahkan ke database!';
+    }
+    return 'AMAN: Database sudah siap.';
 });
 
 require __DIR__ . '/auth.php';

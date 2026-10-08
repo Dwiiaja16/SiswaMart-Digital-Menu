@@ -82,22 +82,88 @@ const clearSearch = () => {
 const activeSlides = ref({});
 let autoSlideInterval = null;
 
+const isValidImageString = (val) => {
+    if (!val) return false;
+    if (typeof val !== 'string') return false;
+    const trimmed = val.trim();
+    return (
+        trimmed !== '' &&
+        trimmed.toLowerCase() !== 'null' &&
+        trimmed.toLowerCase() !== 'undefined'
+    );
+};
+
+const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+
+    // 1. Ekstrak path jika datanya berupa objek
+    let path = typeof imagePath === 'object' ? (imagePath.image_path || imagePath.url) : imagePath;
+    if (!path || typeof path !== 'string') return null;
+
+    path = path.trim();
+    if (!isValidImageString(path)) return null;
+
+    // 2. Jika URL lengkap dari luar (Google/dll) atau data URL, biarkan saja
+    if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:image')) {
+        return path;
+    }
+
+    // 3. PEMBERSIH MUTLAK: Pecah semua URL yang berantakan dan ambil nama filenya saja
+    const parts = path.split('/');
+    const filename = parts.pop()?.trim();
+
+    if (!filename || !isValidImageString(filename)) {
+        return null;
+    }
+
+    // 4. Kembalikan URL yang dirakit bersih dengan awalan garis miring "/"
+    return `/storage/products/${filename}`;
+};
+
+const getValidImageUrl = (product) => {
+    if (!product) return null;
+
+    // 1. Cek foto utama produk
+    if (product.image) {
+        const url = getImageUrl(product.image);
+        if (url) return url;
+    }
+
+    // 2. Fallback ke foto pertama dari galeri foto (product.images)
+    if (Array.isArray(product.images) && product.images.length > 0) {
+        for (const img of product.images) {
+            const url = getImageUrl(img);
+            if (url) return url;
+        }
+    }
+
+    return null;
+};
+
 const getProductImages = (product) => {
     if (!product) return [];
-    if (product.images && product.images.length > 0) {
-        return product.images.map((img) => img.image_path);
+    const images = [];
+
+    // Prioritaskan gambar dari galeri jika ada
+    if (Array.isArray(product.images) && product.images.length > 0) {
+        product.images.forEach((img) => {
+            const raw = typeof img === 'object' ? (img.image_path || img.url) : img;
+            if (getImageUrl(raw)) {
+                images.push(raw);
+            }
+        });
     }
-    return product.image ? [product.image] : [];
+
+    // Jika galeri kosong tapi foto utama ada
+    if (images.length === 0 && product.image && getImageUrl(product.image)) {
+        images.push(product.image);
+    }
+
+    return images;
 };
 
 const getSlideIndex = (productId) => {
     return activeSlides.value[productId] || 0;
-};
-
-const getImageUrl = (imagePath) => {
-    if (!imagePath) return '';
-    if (imagePath.startsWith('http')) return imagePath;
-    return imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
 };
 
 // FORMAT WA ADMIN UNTUK PENDAFTARAN SELLER BARU
@@ -115,17 +181,8 @@ onUnmounted(() => {
 });
 
 const getProductThumbnail = (product) => {
-    if (!product) return '';
-    // Ambil gambar pertama dari galeri jika ada
-    if (product.images && product.images.length > 0) {
-        return getImageUrl(product.images[0].image_path || product.images[0].url);
-    }
-    // Jika tidak ada galeri, ambil gambar utama
-    if (product.image) {
-        return getImageUrl(product.image);
-    }
-    // Gambar default jika kosong (opsional)
-    return '/images/default-product.png'; 
+    if (!product) return '/images/default-product.png';
+    return getValidImageUrl(product) || '/images/default-product.png';
 };
 </script>
 
@@ -261,9 +318,9 @@ const getProductThumbnail = (product) => {
                     <span class="text-[#F25C05]">Luar Biasa.</span>
                 </h1>
 
-                <!-- SUBTITLE -->
-                <p class="text-[#634C3C] text-xs sm:text-base md:text-lg font-semibold sm:font-bold max-w-xl mx-auto leading-relaxed px-2">
-                    Pesan makanan, minuman dingin, dan karya kreatif langsung dari siswa SMKN 11 Bandung. Enak, praktis, dan dukung jiwa wirausaha!
+                <!-- SUBTITLE (Warning) -->
+                <p class="text-xs sm:text-base md:text-lg font-extrabold text-rose-700 max-w-xl mx-auto leading-relaxed px-2 text-center [text-wrap:balance]">
+                    Catatan: Pemesanan saat ini khusus di lingkungan SMKN 11 Bandung, kecuali jika penjual menyanggupi saat dihubungi.
                 </p>
 
                 <!-- SEARCH CAPSULE DENGAN LIVE DROPDOWN HIGH Z-INDEX (Z-100) -->
@@ -293,9 +350,11 @@ const getProductThumbnail = (product) => {
                             v-if="search"
                             @click="clearSearch"
                             type="button"
-                            class="mr-2 text-stone-400 hover:text-[#362415] font-black text-xs p-1 rounded-full hover:bg-stone-200 transition"
+                            class="mr-2 text-stone-400 hover:text-[#362415] p-1 rounded-full hover:bg-stone-200 transition flex items-center justify-center"
                         >
-                            ✕
+                            <svg class="w-3.5 h-3.5 stroke-[3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
                         </button>
 
                         <button
@@ -325,12 +384,14 @@ const getProductThumbnail = (product) => {
                                 >
                                     <div class="flex items-center gap-3 min-w-0">
                                         <div class="w-11 h-11 rounded-xl bg-stone-100 border-2 border-[#362415] overflow-hidden shrink-0 shadow-[2px_2px_0px_#362415]">
+                                            <!-- FOTO PRODUK PENCARIAN (VALIDASI AMAN & FALLBACK) -->
                                             <img
-                                                v-if="getProductImages(product).length > 0"
-                                                :src="getImageUrl(getProductImages(product)[0])"
-                                                class="w-full h-full object-cover"
+                                                v-if="getValidImageUrl(product)"
+                                                :src="getValidImageUrl(product)"
+                                                :alt="product.name"
+                                                class="w-full h-full object-cover bg-white"
                                             />
-                                            <div v-else class="w-full h-full flex items-center justify-center text-[8px] font-extrabold text-stone-400">
+                                            <div v-else class="w-full h-full flex items-center justify-center text-[8px] font-extrabold text-stone-400 bg-[#fffaf3]">
                                                 NO FOTO
                                             </div>
                                         </div>
@@ -339,7 +400,7 @@ const getProductThumbnail = (product) => {
                                                 {{ product.name }}
                                             </h4>
                                             <span class="text-[10px] text-[#634C3C] font-bold block truncate">
-                                                {{ product.shop?.name || 'Lapak Siswa' }}
+                                                {{ product.shop?.name || 'Toko Siswa' }}
                                             </span>
                                         </div>
                                     </div>
@@ -478,13 +539,13 @@ const getProductThumbnail = (product) => {
                             :href="route('products.show', product.id)"
                             class="block relative w-full aspect-[4/5] bg-stone-100 overflow-hidden"
                         >
-                            <!-- TAMPILAN GAMBAR STATIS (TIDAK ADA SLIDE) -->
+                            <!-- TAMPILAN GAMBAR STATIS (PRIORITAS FOTO UTAMA LALU FOTO PENDUKUNG) -->
                             <img
-                                v-if="getProductImages(product).length > 0"
-                                :src="getImageUrl(getProductImages(product)[0])"
+                                v-if="getValidImageUrl(product)"
+                                :src="getValidImageUrl(product)"
                                 :alt="product.name"
                                 loading="lazy"
-                                class="w-full h-full object-cover group-hover:scale-105 transition-all duration-500 ease-out"
+                                class="w-full h-full object-cover group-hover:scale-105 transition-all duration-500 ease-out bg-white"
                             />
 
                             <!-- TAMPILAN JIKA PRODUK TIDAK PUNYA FOTO -->
@@ -504,7 +565,7 @@ const getProductThumbnail = (product) => {
                                 style="clip-path: polygon(0 0, 100% 0, 84% 100%, 0% 100%);"
                             >
                                 <span class="font-extrabold text-[9px] sm:text-[11px] tracking-wide truncate max-w-[80px] sm:max-w-[110px]">
-                                    {{ product.shop?.name || "Lapak Siswa" }}
+                                    {{ product.shop?.name || "Toko Siswa" }}
                                 </span>
                             </div>
 
@@ -531,8 +592,8 @@ const getProductThumbnail = (product) => {
                             </Link>
 
                             <div class="flex items-center gap-1 text-[10px] sm:text-[11px] text-[#634C3C] font-semibold mb-2 sm:mb-3">
-                                <span v-for="cat in product.categories?.slice(0, 1)" :key="cat.id" class="truncate">{{ cat.name }}</span>
-                                <span v-if="product.categories?.length && product.stock_status" class="text-stone-300">•</span>
+                                <span v-if="product.category" class="truncate">{{ product.category.name }}</span>
+                                <span v-if="product.category && product.stock_status" class="text-stone-300">â€¢</span>
                                 <span :class="{
                                     'text-emerald-700 font-bold': product.stock_status === 'ready',
                                     'text-amber-700 font-bold': product.stock_status === 'pre_order',
@@ -650,7 +711,7 @@ const getProductThumbnail = (product) => {
                         Punya Produk Kreatif & Ingin Berjualan di SiswaMart?
                     </h3>
                     <p class="text-[#362415]/80 text-xs sm:text-sm font-bold leading-relaxed">
-                        Mulai bisnis sekolahmu sekarang! Daftarkan lapak usaha kamu secara cepat dengan langsung menghubungi Admin Sekolah via WhatsApp.
+                        Mulai bisnis sekolahmu sekarang! Daftarkan toko usaha kamu secara cepat dengan langsung menghubungi Admin Sekolah via WhatsApp.
                     </p>
                 </div>
 
@@ -698,7 +759,7 @@ const getProductThumbnail = (product) => {
 
             <!-- FOOTER -->
             <footer class="text-center pt-6 sm:pt-8 pb-4 text-[11px] sm:text-xs font-bold text-[#947d6b] space-y-1">
-                <p>SISWAMART • SMKN 11 BANDUNG</p>
+                <p>SISWAMART â€¢ SMKN 11 BANDUNG</p>
                 <p class="text-[10px] sm:text-[11px] font-semibold text-[#947d6b]/80">
                     Platform Digital Wirausaha Siswa Kreatif & Berdaya.
                 </p>

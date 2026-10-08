@@ -6,6 +6,17 @@
 
         <title inertia>{{ config('app.name', 'SiswaMart') }}</title>
 
+        <!-- META DESKRIPSI UMUM UNTUK GOOGLE & SEO -->
+        <meta name="description" content="Platform e-commerce resmi warga SMKN 11 Bandung tempat jual beli produk kreatif, kuliner, dan karya siswa secara online dengan mudah dan aman.">
+        <meta name="keywords" content="SiswaMart, SMKN 11 Bandung, Marketplace Sekolah, Jual Beli Siswa, Toko Online Sekolah">
+        
+        <!-- OPEN GRAPH (UNTUK PREVIEW SAAT DI-SHARE KE WHATSAPP / SOSMED) -->
+        <meta property="og:title" content="SiswaMart - Marketplace Resmi SMKN 11 Bandung">
+        <meta property="og:description" content="Platform e-commerce resmi warga SMKN 11 Bandung tempat jual beli produk kreatif, kuliner, dan karya siswa secara online dengan mudah dan aman.">
+        <meta property="og:image" content="{{ asset('favicon-v2.png') }}">
+        <meta property="og:url" content="https://siswamart.my.id">
+        <meta property="og:type" content="website">
+
         <!-- Favicon / Logo Website Transparan Terbaru -->
         <link rel="icon" type="image/png" href="/favicon-v2.png">
         <link rel="shortcut icon" href="/favicon-v2.png" type="image/png">

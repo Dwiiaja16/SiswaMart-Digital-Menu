@@ -48,7 +48,7 @@ class LoginRequest extends FormRequest
 
             // Kustomisasi pesan error jika username atau password salah
             throw ValidationException::withMessages([
-                'username' => 'Username/Email atau Password yang kamu masukkan salah. Silakan periksa kembali kredensial lapakmu.',
+                'username' => 'Username/Email atau Password yang kamu masukkan salah. Silakan periksa kembali kredensial tokomu.',
             ]);
         }
 
