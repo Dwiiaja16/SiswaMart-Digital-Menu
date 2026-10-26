@@ -37,7 +37,7 @@ class ResetPasswordMail extends Mailable
             view: 'emails.reset_password',
             with: [
                 'user'     => $this->user,
-                'resetUrl' => route('password.reset.form', [
+                'resetUrl' => route('password.reset', [
                     'token' => $this->token,
                     'email' => $this->email,
                 ]),
