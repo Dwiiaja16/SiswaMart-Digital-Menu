@@ -13,6 +13,7 @@
         "laravel/sanctum": "^4.0",
         "laravel/socialite": "^5.30",
         "laravel/tinker": "^3.0",
+        "resend/resend-laravel": "^1.7",
         "tightenco/ziggy": "^2.0"
     },
     "require-dev": {

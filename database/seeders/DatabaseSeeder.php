@@ -3,9 +3,9 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-use App\Models\Shop;
-use App\Models\Category;
-use App\Models\Product;
+use App\Models\DataPenjual;
+use App\Models\Kategori;
+use App\Models\Produk;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -18,51 +18,53 @@ class DatabaseSeeder extends Seeder
     {
         // 1. DATA KATEGORI PROMOSI
         $categories = [
-            ['name' => 'Makanan Berat', 'slug' => 'makanan-berat'],
-            ['name' => 'Jajanan & Snack', 'slug' => 'jajanan-snack'],
-            ['name' => 'Minuman', 'slug' => 'minuman'],
+            ['nama_kategori' => 'Makanan Berat', 'slug' => 'makanan-berat'],
+            ['nama_kategori' => 'Jajanan & Snack', 'slug' => 'jajanan-snack'],
+            ['nama_kategori' => 'Minuman', 'slug' => 'minuman'],
         ];
 
         foreach ($categories as $category) {
-            Category::create($category);
+            Kategori::create($category);
         }
 
         // 2. AKUN SUPER ADMIN
-        User::create([
-            'name' => 'Super Admin',
-            'email' => 'admin@siswamart.com',
+        $admin = User::create([
+            'username' => 'admin',
             'password' => Hash::make('password123'),
-            'role' => 'admin',
-            'whatsapp_number' => '081234567890',
+            'role'     => 'admin',
         ]);
 
-        // 3. AKUN PENJUAL (Siswa Wirausaha) - Disimpan ke variabel $seller
+        // 3. AKUN PENJUAL (Siswa Wirausaha)
         $seller = User::create([
-            'name' => 'Dwi (Penjual)',
-            'email' => 'Dwi@siswamart.com',
+            'username' => 'dwi',
             'password' => Hash::make('password123'),
-            'role' => 'penjual',
-            'whatsapp_number' => '081234567890',
+            'role'     => 'penjual',
         ]);
 
-        // 4. DATA TOKO/USAHA SISWA
-        $shop = Shop::create([
-            'user_id' => $seller->id, // Sekarang $seller->id sudah terdefinisi!
-            'name' => 'Usaha Snack Dwi',
-            'description' => 'Menyediakan jajanan hits dan kekinian di area SMKN 11 Bandung.',
+        // 4. DATA PENJUAL (Profil & Usaha Siswa)
+        DataPenjual::create([
+            'username'            => $seller->username,
+            'nama_lengkap'        => 'Dwi',
+            'nama_kelas'          => 'XII RPL 1',
+            'foto_penjual'        => null,
+            'alamat'              => 'SMKN 11 Bandung',
+            'created_by_admin_id' => $admin->user_id,
+            'email'               => 'dwi@siswamart.com',
+            'nomor_whatsapp'      => '081234567890',
         ]);
 
         // 5. DATA DUMMY PRODUK SISWA
-        $snackCategory = Category::where('slug', 'jajanan-snack')->first();
+        $snackCategory = Kategori::where('slug', 'jajanan-snack')->first();
         
-        Product::create([
-            'shop_id' => $shop->id,
-            'category_id' => $snackCategory->id,
-            'name' => 'Pangsit Chili Oil',
-            'description' => 'Pangsit rebus dengan bumbu chili oil super pedas dan gurih. Cocok buat nemenin ngoding!',
-            'price' => 5000.00,
-            'stock_status' => 'ready',
-            'views_count' => 150,
+        Produk::create([
+            'username'        => $seller->username,
+            'id_kategori'     => $snackCategory->id_kategori,
+            'nama_produk'     => 'Pangsit Chili Oil',
+            'deskripsi'       => 'Pangsit rebus dengan bumbu chili oil super pedas dan gurih. Cocok buat nemenin ngoding!',
+            'harga'           => 5000.00,
+            'foto_produk'     => null,
+            'status_stok'     => 'ready',
+            'status_moderasi' => 'disetujui',
         ]);
     }
 }

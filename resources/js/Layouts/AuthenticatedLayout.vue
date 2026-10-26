@@ -1,4 +1,3 @@
-```vue
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
@@ -20,15 +19,45 @@ let pollTimer = null;
 const showingUserDropdown = ref(false);
 const showLogoutModal = ref(false);
 
-// Helper Pemanggilan Route Aman
+// Helper Pemanggilan Route Aman & Tahan Banting
 const safeRoute = (name, params = {}) => {
     if (!name) return '#';
 
     try {
-        return route(name, params);
+        if (typeof window !== 'undefined' && typeof window.route === 'function') {
+            return window.route(name, params);
+        }
+        if (typeof route === 'function') {
+            return route(name, params);
+        }
     } catch (e) {
-        return '#';
+        // Fallback jika Ziggy belum siap
     }
+
+    // Ekstrak ID jika params berupa objek atau nilai tunggal
+    const paramVal = typeof params === 'object' && params !== null
+        ? (params.product || params.notification || Object.values(params)[0] || '')
+        : params;
+
+    const fallbacks = {
+        'admin.dashboard': '/admin/dashboard',
+        'admin.sellers.index': '/admin/sellers',
+        'admin.categories.index': '/admin/categories',
+        'admin.products.index': '/admin/products',
+        'admin.recap': '/admin/recap',
+        'admin.reviews.moderation': '/admin/moderasi-ulasan',
+        'admin.notifications.index': '/admin/notifications',
+        'admin.notifications.read': `/admin/notifications/${paramVal}/read`,
+        'products.show': `/catalog/product/${paramVal}`,
+        'catalog.index': '/',
+        'penjual.dashboard': '/penjual/dashboard',
+        'penjual.products.index': '/penjual/products',
+        'reviews.index': '/reviews',
+        'penjual.reports.index': '/penjual/reports',
+        'logout': '/logout',
+    };
+
+    return fallbacks[name] || '#';
 };
 
 // Fetch notifikasi admin via polling
@@ -40,7 +69,8 @@ async function fetchNotifications() {
             safeRoute('admin.notifications.index')
         );
 
-        notifications.value = res.data.notifications || [];
+        const notifData = res.data.notifications;
+        notifications.value = Array.isArray(notifData) ? notifData : (notifData?.data || []);
         unreadCount.value = res.data.unread_count || 0;
     } catch (e) {
         // Silent catch
@@ -50,22 +80,31 @@ async function fetchNotifications() {
 const handleNotificationClick = (notif) => {
     showingNotifDropdown.value = false;
 
+    // Ambil ID Notifikasi & ID Produk
+    const notifId = notif.id || notif.id_notifikasi;
+    const productId = notif.id_produk || notif.product_id || notif.product?.id_produk;
+
+    // Update UI lokal
     if (!notif.is_read) {
         notif.is_read = true;
-
         if (unreadCount.value > 0) {
             unreadCount.value--;
         }
     }
 
-    router.patch(
-        safeRoute('admin.notifications.read', notif.id),
-        {},
-        {
-            preserveScroll: true,
-            preserveState: true
-        }
-    );
+    // 1. Tandai notifikasi dibaca di server
+    if (notifId) {
+        router.patch(
+            safeRoute('admin.notifications.read', notifId),
+            {},
+            { preserveScroll: true, preserveState: true }
+        );
+    }
+
+    // 2. Navigasi langsung ke detail produk
+    if (productId) {
+        router.get(safeRoute('products.show', productId));
+    }
 };
 
 onMounted(() => {
@@ -182,11 +221,13 @@ const isRouteActive = (routeName) => {
     if (!routeName) return false;
 
     try {
-        if (
-            route().current(routeName) ||
-            route().current(routeName + '.*')
-        ) {
-            return true;
+        if (typeof window !== 'undefined' && typeof window.route === 'function') {
+            if (
+                window.route().current(routeName) ||
+                window.route().current(routeName + '.*')
+            ) {
+                return true;
+            }
         }
     } catch {
         // Fallback
@@ -227,6 +268,11 @@ const isRouteActive = (routeName) => {
     if (
         routeName === 'admin.recap' &&
         currentUrl.startsWith('/admin/recap')
+    ) return true;
+
+    if (
+        routeName === 'admin.reviews.moderation' &&
+        (currentUrl.startsWith('/admin/moderasi-ulasan') || currentUrl.startsWith('/admin/reviews'))
     ) return true;
 
     if (
@@ -318,7 +364,7 @@ const isRouteActive = (routeName) => {
                             <button
                                 @click="showingNotifDropdown = !showingNotifDropdown"
                                 type="button"
-                                class="relative p-2 sm:p-2.5 bg-[#fffaf3] hover:bg-amber-100 border-2 border-[#362415] rounded-xl text-[#362415] shadow-[2px_2px_0px_0px_#362415] active:translate-y-0.5 transition flex items-center justify-center"
+                                class="relative p-2 sm:p-2.5 bg-[#fffaf3] hover:bg-amber-100 border-2 border-[#362415] rounded-xl text-[#362415] shadow-[2px_2px_0px_0px_#362415] active:translate-y-0.5 transition flex items-center justify-center cursor-pointer"
                                 title="Notifikasi Produk Baru"
                             >
                                 <svg
@@ -381,7 +427,7 @@ const isRouteActive = (routeName) => {
                                 >
                                     <button
                                         v-for="n in notifications"
-                                        :key="n.id"
+                                        :key="n.id_notifikasi || n.id"
                                         type="button"
                                         @click="handleNotificationClick(n)"
                                         class="flex w-full items-start gap-2.5 p-2.5 rounded-xl border-2 border-[#362415] text-left text-xs transition shadow-[2px_2px_0px_0px_#362415] hover:bg-amber-100 cursor-pointer"
@@ -404,20 +450,13 @@ const isRouteActive = (routeName) => {
                                             <span
                                                 class="font-black uppercase text-[#362415] block text-[11px] sm:text-xs"
                                             >
-                                                Produk Baru:
-                                                {{
-                                                    n.product?.name || 'Produk'
-                                                }}
+                                                {{ n.judul || ('Produk Baru: ' + (n.produk?.nama_produk || 'Produk')) }}
                                             </span>
 
                                             <p
                                                 class="text-[10px] font-bold text-stone-600 mt-0.5"
                                             >
-                                                Dari toko:
-                                                {{
-                                                    n.product?.shop?.name ||
-                                                    'Wirausaha'
-                                                }}
+                                                {{ n.pesan || ('Dari toko: ' + (n.produk?.data_penjual?.nama_toko || n.produk?.penjual?.nama_toko || 'Wirausaha')) }}
                                             </p>
                                         </div>
                                     </button>
@@ -432,7 +471,7 @@ const isRouteActive = (routeName) => {
                         <button
                             @click="showingUserDropdown = !showingUserDropdown"
                             type="button"
-                            class="px-3 sm:px-4 py-2 bg-amber-300 hover:bg-amber-400 border-2 border-[#362415] text-[#362415] font-black text-xs uppercase tracking-wider rounded-xl shadow-[2px_2px_0px_0px_#362415] active:translate-y-0.5 transition flex items-center gap-2"
+                            class="px-3 sm:px-4 py-2 bg-amber-300 hover:bg-amber-400 border-2 border-[#362415] text-[#362415] font-black text-xs uppercase tracking-wider rounded-xl shadow-[2px_2px_0px_0px_#362415] active:translate-y-0.5 transition flex items-center gap-2 cursor-pointer"
                         >
                             <span
                                 class="truncate max-w-[120px] sm:max-w-none"
@@ -489,7 +528,7 @@ const isRouteActive = (routeName) => {
                                     showingUserDropdown = false;
                                     showLogoutModal = true;
                                 "
-                                class="w-full text-left px-4 py-2 text-xs font-black uppercase text-rose-600 hover:bg-rose-50 transition"
+                                class="w-full text-left px-4 py-2 text-xs font-black uppercase text-rose-600 hover:bg-rose-50 transition cursor-pointer"
                             >
                                 Keluar
                             </button>
@@ -530,7 +569,7 @@ const isRouteActive = (routeName) => {
                             :href="safeRoute(item.routeName)"
                             target="_blank"
                             rel="noopener noreferrer"
-                            class="flex items-center justify-between px-3.5 py-3 rounded-xl border-2 border-[#362415] font-black text-xs uppercase tracking-wider transition shadow-[2px_2px_0px_0px_#362415] active:translate-y-0.5"
+                            class="flex items-center justify-between px-3.5 py-3 rounded-xl border-2 border-[#362415] font-black text-xs uppercase tracking-wider transition shadow-[2px_2px_0px_0px_#362415] active:translate-y-0.5 cursor-pointer"
                             :class="item.color"
                         >
                             <div class="flex items-center gap-3 min-w-0">
@@ -571,7 +610,7 @@ const isRouteActive = (routeName) => {
                         <Link
                             v-else
                             :href="safeRoute(item.routeName)"
-                            class="flex items-center justify-between px-3.5 py-3 rounded-xl border-2 border-[#362415] font-black text-xs uppercase tracking-wider transition active:translate-y-0.5"
+                            class="flex items-center justify-between px-3.5 py-3 rounded-xl border-2 border-[#362415] font-black text-xs uppercase tracking-wider transition active:translate-y-0.5 cursor-pointer"
                             :class="[
                                 isRouteActive(item.routeName)
                                     ? 'bg-[#362415] text-white shadow-[4px_4px_0px_0px_#F25C05] font-black'

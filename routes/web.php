@@ -1,20 +1,22 @@
 <?php
 
-use App\Http\Controllers\Admin\RecapController;
+use App\Http\Controllers\Admin\KategoriController;
+use App\Http\Controllers\Admin\PenjualController;
+use App\Http\Controllers\Admin\RekapController;
+use App\Http\Controllers\Admin\ModerasiProdukController;
 use App\Http\Controllers\Auth\GoogleController;
-use App\Http\Controllers\CatalogController;
-use App\Http\Controllers\CategoryController;
-use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\ProductController;
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\ReviewController;
-use App\Http\Controllers\Seller\ReportController;
-use App\Http\Controllers\SellerController;
-use App\Models\Category;
-use App\Models\Product;
-use App\Models\Review;
-use App\Models\Shop;
+use App\Http\Controllers\Auth\PasswordResetController;
+use App\Http\Controllers\KatalogController;
+use App\Http\Controllers\NotifikasiController;
+use App\Http\Controllers\Penjual\ProdukController;
+use App\Http\Controllers\ProfilController;
+use App\Http\Controllers\Penjual\LaporanController;
+use App\Http\Controllers\UlasanController;
+use App\Models\Kategori;
+use App\Models\Produk;
+use App\Models\Ulasan;
 use App\Models\User;
+use App\Models\DataPenjual;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -26,16 +28,16 @@ use Inertia\Inertia;
 */
 
 // Katalog & Detail Produk Publik
-Route::get('/', [CatalogController::class, 'index'])->name('catalog.index');
-Route::get('/kategori', [CatalogController::class, 'categories'])->name('catalog.categories');
-Route::get('/catalog/product/{product}', [CatalogController::class, 'show'])->name('products.show');
+Route::get('/', [KatalogController::class, 'index'])->name('catalog.index');
+Route::get('/kategori', [KatalogController::class, 'categories'])->name('catalog.categories');
+Route::get('/catalog/product/{product}', [KatalogController::class, 'show'])->name('products.show');
 
 // Halaman Informasi Publik
-Route::get('/cara-memesan', fn () => Inertia::render('HowToOrder/Index'))->name('how-to-order');
-Route::get('/tentang-kami', fn () => Inertia::render('About/Index'))->name('about');
+Route::get('/cara-memesan', fn () => Inertia::render('CaraMemesan/Index'))->name('how-to-order');
+Route::get('/tentang-kami', fn () => Inertia::render('TentangKami/Index'))->name('about');
 
 // Ulasan Produk Publik
-Route::post('/products/{product}/reviews', [ReviewController::class, 'store'])->name('reviews.store');
+Route::post('/products/{product}/reviews', [UlasanController::class, 'store'])->name('reviews.store');
 
 // Google OAuth
 Route::get('/auth/google', [GoogleController::class, 'redirectToGoogle'])->name('google.login');
@@ -49,7 +51,7 @@ Route::get('/auth/google/callback', [GoogleController::class, 'handleGoogleCallb
 */
 Route::middleware(['auth'])->group(function () {
 
-    // === PINTU GERBANG DASHBOARD UTAMA (Redirect Sesuai Role) ===
+    // === PINTU GERBANG DASHBOARD UTAMA ===
     Route::get('/dashboard', function () {
         $user = Auth::user();
 
@@ -58,6 +60,17 @@ Route::middleware(['auth'])->group(function () {
         }
 
         if ($user->role === 'penjual') {
+            // HANYA tendang jika akun toko BENAR-BENAR di-suspend oleh Admin
+            if ($user->dataPenjual?->status_toko === 'suspended') {
+                Auth::guard('web')->logout();
+                request()->session()->invalidate();
+                request()->session()->regenerateToken();
+
+                return redirect()->route('login')->withErrors([
+                    'suspended' => 'Akun toko kamu sedang ditangguhkan (suspend) oleh Admin. Silakan hubungi pengelola SiswaMart untuk informasi lebih lanjut.',
+                ]);
+            }
+
             return redirect()->route('penjual.dashboard');
         }
 
@@ -66,75 +79,98 @@ Route::middleware(['auth'])->group(function () {
 
 
     // === FITUR KHUSUS PENJUAL (Siswa) ===
-    Route::prefix('penjual')->name('penjual.')->group(function () {
+    Route::middleware(['role:penjual'])->prefix('penjual')->name('penjual.')->group(function () {
         
-        // Dashboard Penjual (Nama Route: penjual.dashboard)
+        // Dashboard Penjual
         Route::get('/dashboard', function () {
             $user = Auth::user();
-            $shop = $user->shop;
 
-            if (!$shop) {
-                $shop = Shop::create([
-                    'user_id' => $user->id,
-                    'name'    => 'Toko ' . ($user->username ?? $user->name),
-                    'is_open' => true,
+            // Proteksi Lanjutan: Hanya tendang jika status 'suspended' oleh Admin
+            if ($user->dataPenjual?->status_toko === 'suspended') {
+                Auth::guard('web')->logout();
+                request()->session()->invalidate();
+                request()->session()->regenerateToken();
+
+                return redirect()->route('login')->withErrors([
+                    'suspended' => 'Akun toko Anda sedang ditangguhkan (suspend) oleh Admin. Silakan hubungi pengelola SiswaMart.',
                 ]);
             }
 
-            $productIds = $shop->products()->pluck('id');
+            $productIds = Produk::where('username', $user->username)->pluck('id_produk');
 
             return Inertia::render('Penjual/Dashboard', [
-                'shop'  => $shop,
-                'stats' => [
-                    'total_products'    => $productIds->count(),
-                    'ready_count'       => $shop->products()->where('stock_status', 'ready')->count(),
-                    'pre_order_count'   => $shop->products()->where('stock_status', 'pre_order')->count(),
-                    'out_of_stock_count'=> $shop->products()->where('stock_status', 'out_of_stock')->count(),
-                    'total_reviews'     => Review::whereIn('product_id', $productIds)->count(),
-                    'avg_rating'        => Review::whereIn('product_id', $productIds)->avg('rating')
-                        ? number_format(Review::whereIn('product_id', $productIds)->avg('rating'), 1)
+                'seller' => $user->dataPenjual,
+                'stats'  => [
+                    'total_products'     => $productIds->count(),
+                    'ready_count'        => Produk::where('username', $user->username)->where('status_stok', 'ready')->count(),
+                    'pre_order_count'    => Produk::where('username', $user->username)->where('status_stok', 'pre-order')->count(),
+                    'total_reviews'      => Ulasan::whereIn('id_produk', $productIds)->count(),
+                    'avg_rating'         => Ulasan::whereIn('id_produk', $productIds)->avg('rating')
+                        ? number_format(Ulasan::whereIn('id_produk', $productIds)->avg('rating'), 1)
                         : '0.0',
                 ],
-                // PERBAIKAN: Mengganti 'categories' menjadi 'category'
-                'recentProducts' => $shop->products()->with(['images', 'category'])->latest()->take(4)->get(),
-                'recentReviews'  => Review::whereIn('product_id', $productIds)
-                    ->with('product')
+                'recentProducts' => Produk::where('username', $user->username)->with('kategori')->latest()->take(4)->get(),
+                'recentReviews'  => Ulasan::whereIn('id_produk', $productIds)
+                    ->with('produk')
                     ->latest()
                     ->take(4)
                     ->get(),
             ]);
         })->name('dashboard');
 
-        // Kelola Produk Penjual
-        Route::get('/products', [ProductController::class, 'index'])->name('products.index');
-        Route::post('/products', [ProductController::class, 'store'])->name('products.store');
-        Route::match(['post', 'put', 'patch'], '/products/{product}', [ProductController::class, 'update'])->name('products.update');
-        Route::delete('/products/{product}', [ProductController::class, 'destroy'])->name('products.destroy');
+        // Toggle Status Toko (Buka / Tutup) oleh Penjual Mandiri
+        Route::post('/shop/toggle-status', function () {
+            $user = Auth::user();
 
-        // Laporan Performa Toko
-        Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+            $seller = DataPenjual::firstOrCreate(
+                ['username' => $user->username],
+                [
+                    'nama_lengkap' => $user->name ?? $user->username,
+                    'nama_toko'    => 'Toko ' . $user->username,
+                    'email'        => $user->email ?? null,
+                    'status_toko'  => 'buka',
+                ]
+            );
+
+            // Cegah penjual mengubah status jika tokonya di-suspend oleh admin
+            if ($seller->status_toko === 'suspended') {
+                return redirect()->back()->with('error', 'Toko Anda sedang ditangguhkan oleh Admin.');
+            }
+
+            $seller->status_toko = ($seller->status_toko === 'buka') ? 'tutup' : 'buka';
+            $seller->save();
+
+            return redirect()->back()->with('success', 'Status toko berhasil diperbarui!');
+        })->name('shop.toggle-status');
+
+        // Kelola Produk Penjual
+        Route::get('/products', [ProdukController::class, 'index'])->name('products.index');
+        Route::post('/products', [ProdukController::class, 'store'])->name('products.store');
+        Route::match(['post', 'put', 'patch'], '/products/{product}', [ProdukController::class, 'update'])->name('products.update');
+        Route::delete('/products/{product}', [ProdukController::class, 'destroy'])->name('products.destroy');
+
+        // Laporan Performa Penjual
+        Route::get('/reports', [LaporanController::class, 'index'])->name('reports.index');
     });
 
-    // Pengaturan Toko & Ulasan Penjual
-    Route::post('/shop/toggle-status', [ProductController::class, 'toggleShopStatus'])->name('shop.toggle-status');
-    Route::patch('/shop', [ProductController::class, 'updateShop'])->name('shop.update');
-    Route::get('/reviews', [ReviewController::class, 'index'])->name('reviews.index');
+    // Ulasan Penjual
+    Route::get('/reviews', [UlasanController::class, 'index'])->name('reviews.index');
 
 
     // === FITUR KHUSUS ADMIN ===
     Route::middleware(['role:admin'])->prefix('admin')->name('admin.')->group(function () {
 
-        // Dashboard Admin (Nama Route: admin.dashboard)
+        // Dashboard Admin
         Route::get('/dashboard', function () {
             return Inertia::render('Admin/Dashboard', [
                 'stats' => [
                     'totalSellers'    => User::where('role', 'penjual')->count(),
-                    'activeShops'     => \App\Models\User::where('role', 'penjual')->count(),
-                    'totalProducts'   => Product::count(),
-                    'totalCategories' => Category::count(),
+                    'activeShops'     => DataPenjual::where('status_toko', 'buka')->count(),
+                    'totalProducts' => Produk::where('status_moderasi', 'disetujui')->count(),
+                    'totalCategories' => Kategori::count(),
                 ],
                 'recentSellers' => User::where('role', 'penjual')
-                    ->with('shop')
+                    ->with('dataPenjual')
                     ->latest()
                     ->take(5)
                     ->get(),
@@ -142,37 +178,36 @@ Route::middleware(['auth'])->group(function () {
         })->name('dashboard');
 
         // Manajemen Kategori
-        Route::resource('categories', CategoryController::class)->except(['create', 'edit', 'show']);
+        Route::resource('categories', KategoriController::class)->except(['create', 'edit', 'show']);
 
         // Manajemen Penjual
-        Route::post('/sellers/{seller}', [SellerController::class, 'update'])->name('sellers.update');
-        Route::patch('/sellers/{user}/suspend', [SellerController::class, 'toggleSuspend'])->name('sellers.toggle-suspend');
-        Route::resource('sellers', SellerController::class)->except(['create', 'edit', 'show']);
+        Route::post('/sellers/{seller}', [PenjualController::class, 'update'])->name('sellers.update');
+        Route::resource('sellers', PenjualController::class)->except(['create', 'edit', 'show']);
 
         // Moderasi Produk Admin
-        Route::get('/products', [ProductController::class, 'adminIndex'])->name('products.index');
-        Route::delete('/products/{product}', [ProductController::class, 'adminDestroy'])->name('products.destroy');
+        Route::get('/products', [ModerasiProdukController::class, 'index'])->name('products.index');
+        Route::patch('/products/{product}/approve', [ModerasiProdukController::class, 'approve'])->name('products.approve');
+        Route::patch('/products/{product}/reject', [ModerasiProdukController::class, 'reject'])->name('products.reject');
+        Route::delete('/products/{product}', [ModerasiProdukController::class, 'destroy'])->name('products.destroy');
 
-        // Rekapitulasi & Suspend Toko
-        Route::get('/recap', [RecapController::class, 'index'])->name('recap');
-        Route::patch('/shops/{shop}/toggle-suspend', [RecapController::class, 'toggleSuspend'])->name('shops.toggle-suspend');
+        // Rekapitulasi Penjual & Toggle Suspend
+        Route::get('/recap', [RekapController::class, 'index'])->name('recap');
+        Route::patch('/recap/{username}/toggle-suspend', [RekapController::class, 'toggleSuspend'])->name('recap.toggle-suspend');
 
         // Notifikasi Admin
-        Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
-        Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
+        Route::get('/notifications', [NotifikasiController::class, 'index'])->name('notifications.index');
+        Route::patch('/notifications/{notification}/read', [NotifikasiController::class, 'markAsRead'])->name('notifications.read');
 
         // Moderasi Ulasan Admin
-        Route::get('/moderasi-ulasan', [ReviewController::class, 'moderationIndex'])->name('reviews.moderation');
-        Route::patch('/moderasi-ulasan/{review}/approve', [ReviewController::class, 'approve'])->name('reviews.approve');
-        Route::delete('/moderasi-ulasan/{review}', [ReviewController::class, 'destroy'])->name('reviews.destroy');
+        Route::get('/moderasi-ulasan', [UlasanController::class, 'moderationIndex'])->name('reviews.moderation');
+        Route::delete('/moderasi-ulasan/{review}', [UlasanController::class, 'destroy'])->name('reviews.destroy');
     });
 
     // Profil User & OAuth Disconnect
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::get('/profile', [ProfilController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfilController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfilController::class, 'destroy'])->name('profile.destroy');
     Route::post('/auth/google/disconnect', [GoogleController::class, 'disconnectGoogle'])->name('google.disconnect');
-    Route::delete('/product-images/{image}', [ProductController::class, 'destroyImage'])->name('product-images.destroy');
 });
 
 
@@ -190,7 +225,7 @@ Route::get('/clear-cache-now', function () {
     return 'Cache Route & Config Server Berhasil Dibersihkan!';
 });
 
-// Rute Darurat untuk Menjalankan Migrasi di Hosting (Tanpa Terminal)
+// Rute Darurat untuk Menjalankan Migrasi di Hosting
 Route::get('/run-migration-now', function () {
     try {
         \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
@@ -223,21 +258,16 @@ Route::post('/deploy-siswamart-secret-11', function () {
     \Illuminate\Support\Facades\Artisan::call('cache:clear');
 
     return response()->json([
-        'status' => 'success',
+        'status'  => 'success',
         'message' => 'Auto deploy berhasil!',
-        'output' => $output
+        'output'  => $output
     ]);
 });
 
-// Rute Setup Fitur Moderasi Ulasan
-Route::get('/setup-moderasi-ulasan', function () {
-    if (!\Illuminate\Support\Facades\Schema::hasColumn('reviews', 'status')) {
-        \Illuminate\Support\Facades\Schema::table('reviews', function (\Illuminate\Database\Schema\Blueprint $table) {
-            $table->string('status')->default('approved')->after('comment');
-        });
-        return 'SUKSES: Fitur moderasi berhasil ditambahkan ke database!';
-    }
-    return 'AMAN: Database sudah siap.';
-});
-
 require __DIR__ . '/auth.php';
+
+Route::middleware('guest')->group(function () {
+    Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink'])->name('password.email');
+    Route::get('/reset-password/{token}', [PasswordResetController::class, 'showResetForm'])->name('password.reset.form');
+    Route::post('/reset-password', [PasswordResetController::class, 'resetPassword'])->name('password.update');
+});

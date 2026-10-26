@@ -17,6 +17,29 @@ const props = defineProps({
         default: () => [],
     },
 });
+
+// Helper Pemanggilan Route Aman & Tahan Banting
+const safeRoute = (name, params = {}) => {
+    if (!name) return '#';
+
+    try {
+        if (typeof window !== 'undefined' && typeof window.route === 'function') {
+            return window.route(name, params);
+        }
+        if (typeof route === 'function') {
+            return route(name, params);
+        }
+    } catch (e) {
+        // Fallback jika Ziggy belum dimuat
+    }
+
+    const fallbacks = {
+        'admin.sellers.index': '/admin/sellers',
+        'admin.penjual.index': '/admin/sellers',
+    };
+
+    return fallbacks[name] || '/admin/sellers';
+};
 </script>
 
 <template>
@@ -120,10 +143,9 @@ const props = defineProps({
                             </div>
                         </div>
 
-                        <!-- PERBAIKAN: Menggunakan 'href' biasa sebagai fallback jika route() gagal atau mendefinisikan route jika ziggy jalan. -->
                         <Link
-                            :href="route ? route('admin.sellers.index') : '/admin/sellers'"
-                            class="text-xs font-black text-orange-600 hover:underline uppercase flex items-center gap-1.5"
+                            :href="safeRoute('admin.sellers.index')"
+                            class="text-xs font-black text-orange-600 hover:underline uppercase flex items-center gap-1.5 cursor-pointer"
                         >
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
@@ -138,26 +160,33 @@ const props = defineProps({
                                 <tr class="border-b-2 border-gray-900 bg-stone-100 text-[10px] font-black uppercase tracking-wider text-gray-700">
                                     <th class="p-3 sm:p-3.5 rounded-l-xl">SISWA PENJUAL</th>
                                     <th class="p-3 sm:p-3.5">Nama Toko</th>
-                                    <th class="p-3 sm:p-3.5 rounded-r-xl">WhatsApp</th>
+                                    <th class="p-3 sm:p-3.5 rounded-r-xl">No WhatsApp</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y-2 divide-gray-100">
                                 <tr
                                     v-for="seller in recentSellers"
-                                    :key="seller.id"
+                                    :key="seller.user_id || seller.username"
                                     class="hover:bg-stone-50/50 transition"
                                 >
+                                    <!-- SISWA PENJUAL -->
                                     <td class="py-3 sm:py-4 px-3 sm:px-3.5 font-black text-xs uppercase text-gray-900">
-                                        {{ seller.username || '-' }}
+                                        {{ seller.data_penjual?.nama_lengkap || seller.dataPenjual?.nama_lengkap || seller.username }}
+                                        <span class="block text-[10px] font-bold text-orange-600">@{{ seller.username }}</span>
                                     </td>
+
+                                    <!-- NAMA TOKO -->
                                     <td class="py-3 sm:py-4 px-3 sm:px-3.5 text-xs font-bold text-gray-700 uppercase">
-                                        {{ seller.shop ? seller.shop.name : "-" }}
+                                        {{ seller.data_penjual?.nama_toko || seller.dataPenjual?.nama_toko || '-' }}
                                     </td>
+
+                                    <!-- WHATSAPP -->
                                     <td class="py-3 sm:py-4 px-3 sm:px-3.5 text-xs font-bold text-emerald-600">
-                                        {{ seller.whatsapp_number }}
+                                        {{ seller.data_penjual?.nomor_whatsapp || seller.dataPenjual?.nomor_whatsapp || '-' }}
                                     </td>
                                 </tr>
-                                <tr v-if="recentSellers.length === 0">
+
+                                <tr v-if="!recentSellers || recentSellers.length === 0">
                                     <td colspan="3" class="py-8 text-center text-xs font-black uppercase text-gray-400">
                                         Belum ada data penjual.
                                     </td>

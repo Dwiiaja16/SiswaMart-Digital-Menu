@@ -15,22 +15,26 @@ class User extends Authenticatable
     use HasFactory, Notifiable;
 
     /**
-     * Kolom yang dapat diisi secara mass-assignment
+     * Nama tabel yang terhubung dengan model ini.
+     */
+    protected $table = 'users';
+
+    /**
+     * Primary key dari tabel users.
+     */
+    protected $primaryKey = 'user_id';
+
+    /**
+     * Kolom yang dapat diisi secara mass-assignment.
      */
     protected $fillable = [
         'username',
-        'name',
-        'email',
         'password',
         'role',
-        'whatsapp_number',
-        'is_suspended',
-        'google_id',
-        'login_method',
     ];
 
     /**
-     * Kolom yang disembunyikan saat serialisasi JSON
+     * Kolom yang disembunyikan saat serialisasi JSON.
      */
     protected $hidden = [
         'password',
@@ -38,39 +42,44 @@ class User extends Authenticatable
     ];
 
     /**
-     * Nilai default atribut saat record baru dibuat
+     * Nilai default atribut saat record baru dibuat.
      */
     protected $attributes = [
-        'role'         => 'user',  // Default: 'user' (Pembeli / Pengunjung)
-        'is_suspended' => false,
+        'role' => 'penjual',
     ];
 
     /**
-     * Cast Atribut
+     * Cast Atribut.
      */
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
-            'password'          => 'hashed',
-            'is_suspended'      => 'boolean',
+            'password' => 'hashed',
         ];
     }
 
     /**
-     * Relasi ke model Shop (Hanya dimiliki jika role = penjual)
+     * Relasi ke Data Penjual (One to One berdasarkan username)
      */
-    public function shop(): HasOne
+    public function dataPenjual(): HasOne
     {
-        return $this->hasOne(Shop::class);
+        return $this->hasOne(DataPenjual::class, 'username', 'username');
     }
 
     /**
-     * Relasi ke Ulasan Produk
+     * Relasi ke Produk (One to Many berdasarkan username)
      */
-    public function reviews(): HasMany
+    public function produk(): HasMany
     {
-        return $this->hasMany(Review::class);
+        return $this->hasMany(Produk::class, 'username', 'username');
+    }
+
+    /**
+     * Relasi ke Notifikasi (One to Many berdasarkan username)
+     */
+    public function notifikasi(): HasMany
+    {
+        return $this->hasMany(Notifikasi::class, 'username', 'username');
     }
 
     /**
@@ -84,15 +93,5 @@ class User extends Authenticatable
     public function isPenjual(): bool
     {
         return $this->role === 'penjual';
-    }
-
-    public function isUser(): bool
-    {
-        return $this->role === 'user';
-    }
-
-    public function sellerProfile()
-    {
-        return $this->hasOne(SellerProfile::class);
     }
 }

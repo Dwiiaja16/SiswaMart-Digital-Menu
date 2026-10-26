@@ -12,22 +12,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable();
+            $table->id('user_id'); // Primary Key (user_id)
+            $table->string('username')->unique(); // Unique key yang dipakai sebagai Foreign Key di tabel lain
+            $table->string('password');
+            $table->enum('role', ['admin', 'penjual'])->default('penjual');
             
-            // Password dibuat nullable (opsional untuk login via Google)
-            $table->string('password')->nullable(); 
-            
-            $table->string('role')->default('penjual'); // 'penjual' atau 'admin'
-            $table->string('whatsapp_number')->nullable();
-            
-            // Kolom pendukung login Google & status suspend
-            $table->string('google_id')->nullable();
-            $table->enum('login_method', ['google', 'manual'])->default('manual');
-            $table->boolean('is_suspended')->default(false);
-
             $table->rememberToken();
             $table->timestamps();
         });

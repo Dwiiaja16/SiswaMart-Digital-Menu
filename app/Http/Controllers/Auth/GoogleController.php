@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\DataPenjual;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
 
 class GoogleController extends Controller
@@ -27,30 +27,47 @@ class GoogleController extends Controller
     {
         try {
             $googleUser = Socialite::driver('google')->user();
+            $googleEmail = $googleUser->getEmail();
 
-            // 1. Cari user berdasarkan google_id atau email
-            $user = User::where('google_id', $googleUser->id)
-                        ->orWhere('email', $googleUser->email)
-                        ->first();
+            // 1. JIKA PENGGUNA SUDAH LOGIN (PROSES TAUTKAN AKUN GMAIL)
+            if (Auth::check()) {
+                $currentUser = Auth::user();
+                $penjual = $currentUser->dataPenjual;
 
-            // 2. Jika user tidak ditemukan ATAU rolenya 'user' biasa (Pengunjung)
-            if (!$user || $user->role === 'user') {
-                return redirect()->route('login')->with(
-                    'error', 
-                    'Fitur Login hanya diperuntukkan bagi Penjual dan Admin SiswaMart. Pengunjung dapat langsung melihat katalog dan memberikan ulasan tanpa login.'
-                );
+                if ($penjual) {
+                    $penjual->email = $googleEmail;
+                    $penjual->save();
+                } else {
+                    DataPenjual::create([
+                        'username'     => $currentUser->username,
+                        'nama_lengkap' => $currentUser->username,
+                        'email'        => $googleEmail,
+                    ]);
+                }
+
+                return redirect()->route('dashboard')->with('success', "Akun Google ({$googleEmail}) berhasil ditautkan!");
             }
 
-            // 3. Jika akun terdaftar sebagai Penjual atau Admin, izinkan masuk
+            // 2. JIKA PENGGUNA BELUM LOGIN (PROSES LOGIN DENGAN GOOGLE)
+            // Cari data_penjual berdasarkan email Google di database (Sesuai ERD)
+            $penjual = DataPenjual::where('email', $googleEmail)->first();
+
+            if (!$penjual) {
+                return redirect()->route('login')->with('error', "Akun Google ({$googleEmail}) belum tertaut dengan akun penjual SiswaMart mana pun. Silakan login manual dan tautkan di menu Profil.");
+            }
+
+            $user = User::where('username', $penjual->username)->first();
+
+            if (!$user || $user->role === 'user') {
+                return redirect()->route('login')->with('error', 'Akses Login dibatasi khusus untuk Penjual dan Admin SiswaMart.');
+            }
+
             Auth::login($user);
 
-            return redirect()->route('dashboard');
+            return redirect()->route('dashboard')->with('success', 'Berhasil login dengan akun Google!');
 
         } catch (\Exception $e) {
-            return redirect()->route('login')->with(
-                'error', 
-                'Akses Login dibatasi. Halaman ini khusus untuk Pengelola Toko (Penjual) dan Admin.'
-            );
+            return redirect()->route('login')->with('error', 'Gagal memproses autentikasi Google: ' . $e->getMessage());
         }
     }
 
@@ -61,15 +78,14 @@ class GoogleController extends Controller
     {
         $currentUser = Auth::user();
 
-        if ($currentUser) {
-            $currentUser->update([
-                'google_id'    => null,
-                'login_method' => 'manual',
-            ]);
+        if ($currentUser && $currentUser->dataPenjual) {
+            $penjual = $currentUser->dataPenjual;
+            $penjual->email = $currentUser->username . '@siswamart.com';
+            $penjual->save();
 
-            return redirect()->back()->with('success', 'Akun Google berhasil diputuskan!');
+            return redirect()->back()->with('success', 'Tautan akun Google berhasil dilepas!');
         }
 
-        return redirect()->route('login');
+        return redirect()->back()->with('error', 'Gagal melepas akun Google.');
     }
 }

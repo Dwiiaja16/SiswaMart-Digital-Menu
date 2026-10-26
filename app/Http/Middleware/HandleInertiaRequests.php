@@ -33,21 +33,13 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
-        // Hitung jumlah ulasan yang tertahan (pending) khusus untuk role admin
-        $pendingReviewsCount = 0;
-        if ($request->user() && $request->user()->role === 'admin') {
-            $pendingReviewsCount = \App\Models\Review::where('status', 'pending')->count();
-        }
-
         return array_merge(parent::share($request), [
             'auth' => [
-                'user' => $request->user() ? $request->user()->load('shop') : null,
+                'user' => $request->user() ? $request->user()->load('dataPenjual') : null,
             ],
-            // Variabel global agar badge sidebar menyala otomatis
-            'pendingReviewsCount' => $pendingReviewsCount,
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
-                'error' => fn () => $request->session()->get('error'),
+                'error'   => fn () => $request->session()->get('error'),
             ],
         ]);
     }
