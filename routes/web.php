@@ -33,8 +33,8 @@ Route::get('/kategori', [KatalogController::class, 'categories'])->name('catalog
 Route::get('/catalog/product/{product}', [KatalogController::class, 'show'])->name('products.show');
 
 // Halaman Informasi Publik
-Route::get('/cara-memesan', fn () => Inertia::render('CaraMemesan/Index'))->name('how-to-order');
-Route::get('/tentang-kami', fn () => Inertia::render('TentangKami/Index'))->name('about');
+Route::get('/cara-memesan', fn() => Inertia::render('CaraMemesan/Index'))->name('how-to-order');
+Route::get('/tentang-kami', fn() => Inertia::render('TentangKami/Index'))->name('about');
 
 // Ulasan Produk Publik
 Route::post('/products/{product}/reviews', [UlasanController::class, 'store'])->name('reviews.store');
@@ -80,7 +80,7 @@ Route::middleware(['auth'])->group(function () {
 
     // === FITUR KHUSUS PENJUAL (Siswa) ===
     Route::middleware(['role:penjual'])->prefix('penjual')->name('penjual.')->group(function () {
-        
+
         // Dashboard Penjual
         Route::get('/dashboard', function () {
             $user = Auth::user();
@@ -100,17 +100,17 @@ Route::middleware(['auth'])->group(function () {
 
             return Inertia::render('Penjual/Dashboard', [
                 'seller' => $user->dataPenjual,
-                'stats'  => [
-                    'total_products'     => $productIds->count(),
-                    'ready_count'        => Produk::where('username', $user->username)->where('status_stok', 'ready')->count(),
-                    'pre_order_count'    => Produk::where('username', $user->username)->where('status_stok', 'pre-order')->count(),
-                    'total_reviews'      => Ulasan::whereIn('id_produk', $productIds)->count(),
-                    'avg_rating'         => Ulasan::whereIn('id_produk', $productIds)->avg('rating')
+                'stats' => [
+                    'total_products' => $productIds->count(),
+                    'ready_count' => Produk::where('username', $user->username)->where('status_stok', 'ready')->count(),
+                    'pre_order_count' => Produk::where('username', $user->username)->where('status_stok', 'pre-order')->count(),
+                    'total_reviews' => Ulasan::whereIn('id_produk', $productIds)->count(),
+                    'avg_rating' => Ulasan::whereIn('id_produk', $productIds)->avg('rating')
                         ? number_format(Ulasan::whereIn('id_produk', $productIds)->avg('rating'), 1)
                         : '0.0',
                 ],
                 'recentProducts' => Produk::where('username', $user->username)->with('kategori')->latest()->take(4)->get(),
-                'recentReviews'  => Ulasan::whereIn('id_produk', $productIds)
+                'recentReviews' => Ulasan::whereIn('id_produk', $productIds)
                     ->with('produk')
                     ->latest()
                     ->take(4)
@@ -126,9 +126,9 @@ Route::middleware(['auth'])->group(function () {
                 ['username' => $user->username],
                 [
                     'nama_lengkap' => $user->name ?? $user->username,
-                    'nama_toko'    => 'Toko ' . $user->username,
-                    'email'        => $user->email ?? null,
-                    'status_toko'  => 'buka',
+                    'nama_toko' => 'Toko ' . $user->username,
+                    'email' => $user->email ?? null,
+                    'status_toko' => 'buka',
                 ]
             );
 
@@ -164,8 +164,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/dashboard', function () {
             return Inertia::render('Admin/Dashboard', [
                 'stats' => [
-                    'totalSellers'    => User::where('role', 'penjual')->count(),
-                    'activeShops'     => DataPenjual::where('status_toko', 'buka')->count(),
+                    'totalSellers' => User::where('role', 'penjual')->count(),
+                    'activeShops' => DataPenjual::where('status_toko', 'buka')->count(),
                     'totalProducts' => Produk::where('status_moderasi', 'disetujui')->count(),
                     'totalCategories' => Kategori::count(),
                 ],
@@ -252,15 +252,15 @@ Route::get('/sitemap.xml', function () {
 // Webhook Auto-Deploy GitHub
 Route::post('/deploy-siswamart-secret-11', function () {
     $output = shell_exec('cd ' . base_path() . ' && git pull origin main 2>&1');
-    
+
     \Illuminate\Support\Facades\Artisan::call('route:clear');
     \Illuminate\Support\Facades\Artisan::call('config:clear');
     \Illuminate\Support\Facades\Artisan::call('cache:clear');
 
     return response()->json([
-        'status'  => 'success',
+        'status' => 'success',
         'message' => 'Auto deploy berhasil!',
-        'output'  => $output
+        'output' => $output
     ]);
 });
 
