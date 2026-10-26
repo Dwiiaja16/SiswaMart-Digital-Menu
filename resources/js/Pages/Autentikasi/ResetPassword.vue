@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 
 const props = defineProps({
     token: { type: String, required: true },
@@ -9,16 +9,17 @@ const props = defineProps({
 
 const showPassword = ref(false);
 const showConfirmation = ref(false);
-const form = useForm({
+
+// Menggunakan state biasa agar submit form langsung menembak URL backend secara utuh
+const form = ref({
     token: props.token,
     email: props.email,
     password: '',
     password_confirmation: '',
 });
 
-const submit = () => form.post(route('password.update'), {
-    onFinish: () => form.reset('password', 'password_confirmation'),
-});
+const processing = ref(false);
+const errorMessage = ref('');
 </script>
 
 <template>
@@ -30,26 +31,36 @@ const submit = () => form.post(route('password.update'), {
                 <h1 class="text-3xl font-black uppercase tracking-tight">Buat Password Baru</h1>
                 <p class="mt-2 text-sm font-bold text-gray-600">Masukkan kata sandi baru untuk <span class="text-[#f97316]">{{ email }}</span>.</p>
 
-                <form class="mt-7 space-y-5" @submit.prevent="submit">
+                <!-- Menggunakan native HTML form method POST agar terhindar dari error intersep sesi Inertia -->
+                <form method="POST" :action="route('password.update')" class="mt-7 space-y-5">
+                    <!-- CSRF Token wajib ada untuk form native POST Laravel -->
+                    <input type="hidden" name="_token" :value="$page.props.csrf_token">
+                    <input type="hidden" name="token" :value="form.token">
+                    <input type="hidden" name="email" :value="form.email">
+
                     <div>
                         <label class="mb-1.5 block text-[10px] font-black uppercase tracking-widest">Password Baru</label>
                         <div class="relative">
-                            <input v-model="form.password" :type="showPassword ? 'text' : 'password'" autocomplete="new-password" required class="w-full rounded-xl border-2 border-gray-900 bg-[#f7f5ef] px-4 py-3 pr-12 text-sm font-bold focus:border-[#f97316] focus:outline-none focus:ring-4 focus:ring-[#f97316]/20" placeholder="••••••••">
+                            <input v-model="form.password" name="password" :type="showPassword ? 'text' : 'password'" autocomplete="new-password" required class="w-full rounded-xl border-2 border-gray-900 bg-[#f7f5ef] px-4 py-3 pr-12 text-sm font-bold focus:border-[#f97316] focus:outline-none focus:ring-4 focus:ring-[#f97316]/20" placeholder="••••••••">
                             <button type="button" class="absolute inset-y-0 right-0 px-4 font-black text-gray-600" :aria-label="showPassword ? 'Sembunyikan password' : 'Tampilkan password'" @click="showPassword = !showPassword">{{ showPassword ? '◉' : '◌' }}</button>
                         </div>
-                        <p v-if="form.errors.password" class="mt-1.5 text-xs font-bold text-rose-600">{{ form.errors.password }}</p>
                     </div>
                     <div>
                         <label class="mb-1.5 block text-[10px] font-black uppercase tracking-widest">Konfirmasi Password Baru</label>
                         <div class="relative">
-                            <input v-model="form.password_confirmation" :type="showConfirmation ? 'text' : 'password'" autocomplete="new-password" required class="w-full rounded-xl border-2 border-gray-900 bg-[#f7f5ef] px-4 py-3 pr-12 text-sm font-bold focus:border-[#f97316] focus:outline-none focus:ring-4 focus:ring-[#f97316]/20" placeholder="••••••••">
+                            <input v-model="form.password_confirmation" name="password_confirmation" :type="showConfirmation ? 'text' : 'password'" autocomplete="new-password" required class="w-full rounded-xl border-2 border-gray-900 bg-[#f7f5ef] px-4 py-3 pr-12 text-sm font-bold focus:border-[#f97316] focus:outline-none focus:ring-4 focus:ring-[#f97316]/20" placeholder="••••••••">
                             <button type="button" class="absolute inset-y-0 right-0 px-4 font-black text-gray-600" :aria-label="showConfirmation ? 'Sembunyikan password' : 'Tampilkan password'" @click="showConfirmation = !showConfirmation">{{ showConfirmation ? '◉' : '◌' }}</button>
                         </div>
-                        <p v-if="form.errors.password_confirmation" class="mt-1.5 text-xs font-bold text-rose-600">{{ form.errors.password_confirmation }}</p>
                     </div>
-                    <p v-if="form.errors.email" class="text-xs font-bold text-rose-600">{{ form.errors.email }}</p>
-                    <button type="submit" :disabled="form.processing" class="w-full rounded-xl border-2 border-gray-900 bg-[#fbbf24] py-3.5 text-sm font-black uppercase tracking-widest shadow-[4px_4px_0_#111827] transition hover:translate-x-1 hover:translate-y-1 hover:bg-yellow-300 hover:shadow-none disabled:opacity-60">{{ form.processing ? 'Menyimpan...' : 'Reset Kata Sandi' }}</button>
+
+                    <!-- Menampilkan error validasi dari server jika ada -->
+                    <div v-if="$page.props.errors && Object.keys($page.props.errors).length > 0" class="p-3 rounded-xl border-2 border-gray-900 bg-rose-100 text-rose-950 font-bold text-xs shadow-[2px_2px_0px_0px_#111827]">
+                        <p v-for="(err, key) in $page.props.errors" :key="key">{{ err }}</p>
+                    </div>
+
+                    <button type="submit" class="w-full rounded-xl border-2 border-gray-900 bg-[#fbbf24] py-3.5 text-sm font-black uppercase tracking-widest shadow-[4px_4px_0_#111827] transition hover:translate-x-1 hover:translate-y-1 hover:bg-yellow-300 hover:shadow-none">Reset Kata Sandi</button>
                 </form>
+
                 <Link :href="route('login')" class="mt-6 block text-center text-xs font-black uppercase tracking-widest text-[#f97316] hover:underline">Kembali ke masuk</Link>
             </div>
         </div>
