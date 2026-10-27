@@ -116,7 +116,7 @@ const submit = () => {
 
                 <!-- Status Message (Neo-Brutalism Style - Rapi & Ringkas) -->
                 <div 
-                    v-if="status" 
+                    v-if="status || $page.props.status || $page.props.flash?.status || $page.props.flash?.success" 
                     class="mb-5 p-3 rounded-2xl border-2 border-gray-900 bg-emerald-100 text-emerald-950 font-bold text-xs shadow-[3px_3px_0px_0px_#111827] flex items-center gap-2.5"
                 >
                     <div class="p-1 rounded-lg bg-emerald-300 border border-gray-900 shrink-0">
@@ -124,7 +124,7 @@ const submit = () => {
                             <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
                         </svg>
                     </div>
-                    <p class="leading-snug text-left flex-1">{{ status }}</p>
+                    <p class="leading-snug text-left flex-1">{{ status || $page.props.status || $page.props.flash?.status || $page.props.flash?.success }}</p>
                 </div>
 
                 <form @submit.prevent="submit" class="space-y-5">

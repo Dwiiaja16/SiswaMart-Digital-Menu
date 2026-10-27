@@ -146,7 +146,9 @@ class PasswordResetController extends Controller
 
             DB::table('password_reset_tokens')->where('email', $request->email)->delete();
 
-            return redirect()->route('login')->with('success', 'Password berhasil diperbarui! Silakan login.');
+            return redirect()->route('login')
+                ->with('status', 'Kata sandi berhasil diperbarui! Silakan masuk dengan kata sandi baru.')
+                ->with('success', 'Kata sandi berhasil diperbarui! Silakan masuk dengan kata sandi baru.');
 
         } catch (Throwable $e) {
             return redirect()->back()->withErrors([
