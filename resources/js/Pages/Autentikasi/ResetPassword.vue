@@ -10,16 +10,12 @@ const props = defineProps({
 const showPassword = ref(false);
 const showConfirmation = ref(false);
 
-// Menggunakan state biasa agar submit form langsung menembak URL backend secara utuh
 const form = ref({
     token: props.token,
     email: props.email,
     password: '',
     password_confirmation: '',
 });
-
-const processing = ref(false);
-const errorMessage = ref('');
 </script>
 
 <template>
@@ -31,9 +27,8 @@ const errorMessage = ref('');
                 <h1 class="text-3xl font-black uppercase tracking-tight">Buat Password Baru</h1>
                 <p class="mt-2 text-sm font-bold text-gray-600">Masukkan kata sandi baru untuk <span class="text-[#f97316]">{{ email }}</span>.</p>
 
-                <!-- Menggunakan native HTML form method POST agar terhindar dari error intersep sesi Inertia -->
-                <form method="POST" :action="route('password.update')" class="mt-7 space-y-5">
-                    <!-- CSRF Token wajib ada untuk form native POST Laravel -->
+                <!-- Action diubah ke action="/reset-password" agar menembak URL yang tepat -->
+                <form method="POST" action="/reset-password" class="mt-7 space-y-5">
                     <input type="hidden" name="_token" :value="$page.props.csrf_token">
                     <input type="hidden" name="token" :value="form.token">
                     <input type="hidden" name="email" :value="form.email">
@@ -53,7 +48,6 @@ const errorMessage = ref('');
                         </div>
                     </div>
 
-                    <!-- Menampilkan error validasi dari server jika ada -->
                     <div v-if="$page.props.errors && Object.keys($page.props.errors).length > 0" class="p-3 rounded-xl border-2 border-gray-900 bg-rose-100 text-rose-950 font-bold text-xs shadow-[2px_2px_0px_0px_#111827]">
                         <p v-for="(err, key) in $page.props.errors" :key="key">{{ err }}</p>
                     </div>
