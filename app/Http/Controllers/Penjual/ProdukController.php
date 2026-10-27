@@ -265,22 +265,7 @@ class ProdukController extends Controller
             abort(403, 'Akses ditolak.');
         }
 
-        if ($produk->foto_produk) {
-            $photos = json_decode($produk->foto_produk, true);
-            if (!is_array($photos)) {
-                $photos = [$produk->foto_produk];
-            }
-
-            foreach ($photos as $photo) {
-                $filename = basename($photo);
-                if ($filename && Storage::disk('public')->exists('products/' . $filename)) {
-                    Storage::disk('public')->delete('products/' . $filename);
-                }
-            }
-        }
-
-        Notifikasi::where('id_produk', $id_produk)->delete();
-
+        // Jalankan Soft Delete (Menutupi dari katalog publik dan mengisi deleted_at)
         $produk->delete();
 
         return redirect()->back()->with('success', 'Produk berhasil dihapus!');

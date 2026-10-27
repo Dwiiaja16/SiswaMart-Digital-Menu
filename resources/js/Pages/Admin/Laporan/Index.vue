@@ -575,23 +575,23 @@ onBeforeUnmount(() => chartInstance?.destroy());
             </div>
         </div>
 
-        <!-- PRINT REPORT (HITAM PUTIH ALA EXCEL / LAPORAN RESMI) -->
+        <!-- PRINT REPORT (PRESISI SAMA DENGAN EXCEL - HITAM PUTIH RESMI) -->
         <section class="print-report">
-            <header class="print-report__header">
+            <div class="print-report__header">
                 <h1>LAPORAN REKAPITULASI TOKO & PENJUAL</h1>
-                <p>SiswaMart — Dicetak pada {{ formattedDate }}</p>
-            </header>
+                <p>SiswaMart — Tanggal Rekap: {{ formattedDate }}</p>
+            </div>
 
             <table class="print-report__table">
                 <thead>
                     <tr>
-                        <th style="width: 5%;">No.</th>
-                        <th style="width: 25%;">Nama Penjual</th>
-                        <th style="width: 20%;">Nama Toko</th>
-                        <th style="width: 12.5%;">Total Produk</th>
-                        <th style="width: 12.5%;">Total Ulasan & Rating</th>
-                        <th style="width: 12.5%;">Produk Baru (7 Hari)</th>
-                        <th style="width: 12.5%;">Produk Dihapus (7 Hari)</th>
+                        <th style="width: 5%;">NO.</th>
+                        <th style="width: 25%;">NAMA PENJUAL</th>
+                        <th style="width: 22%;">NAMA TOKO</th>
+                        <th style="width: 12%;">TOTAL PRODUK</th>
+                        <th style="width: 12%;">TOTAL ULASAN</th>
+                        <th style="width: 12%;">PRODUK BARU (7HR)</th>
+                        <th style="width: 12%;">PRODUK DIHAPUS (7HR)</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -599,10 +599,10 @@ onBeforeUnmount(() => chartInstance?.destroy());
                         <td class="text-center">{{ index + 1 }}</td>
                         <td>{{ shop.nama_lengkap }}</td>
                         <td>{{ shop.nama_toko }}</td>
-                        <td class="text-center">{{ shop.total_products_count }}</td>
-                        <td class="text-center">{{ shop.total_reviews_count }}</td>
-                        <td class="text-center">{{ shop.new_products_count }}</td>
-                        <td class="text-center">{{ shop.deleted_products_count }}</td>
+                        <td class="text-right">{{ shop.total_products_count }}</td>
+                        <td class="text-right">{{ shop.total_reviews_count }}</td>
+                        <td class="text-right">{{ shop.new_products_count }}</td>
+                        <td class="text-right">{{ shop.deleted_products_count }}</td>
                     </tr>
                     <tr v-if="chartShopsList.length === 0">
                         <td colspan="7" class="text-center">Belum ada data toko.</td>
@@ -678,24 +678,21 @@ onBeforeUnmount(() => chartInstance?.destroy());
         margin: 10mm;
     }
 
-    /* Paksa seluruh pembungkus halaman & body jadi Putih Murni */
+    /* Paksa background murni putih */
     html, 
     body, 
     #app, 
     main, 
-    div, 
-    section {
+    div {
         background-color: #ffffff !important;
         background: #ffffff !important;
         color: #000000 !important;
         box-shadow: none !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
     }
 
-    /* Sembunyikan tampilan web biasa */
+    /* Sembunyikan navigasi, sidebar, dan elemen UI layar biasa */
     nav, 
-    header, 
+    header:not(.print-report__header), 
     sidebar, 
     footer, 
     .screen-report, 
@@ -703,44 +700,45 @@ onBeforeUnmount(() => chartInstance?.destroy());
         display: none !important;
     }
 
-    /* Tampilan khusus laporan cetak */
+    /* Tampilan Laporan Cetak PDF (Hitam Putih Presisi) */
     .print-report {
         display: block !important;
         width: 100% !important;
         margin: 0 !important;
         padding: 0 !important;
         background-color: #ffffff !important;
+        font-family: Arial, sans-serif !important;
     }
 
+    /* Judul Laporan & Subtitle Tanggal (Tampil Rapi di Atas Tabel) */
     .print-report__header {
+        display: block !important;
         text-align: center;
-        border-bottom: 2px solid #000000;
         margin-bottom: 16px;
-        padding-bottom: 8px;
-        background-color: #ffffff !important;
+        padding-bottom: 4px;
     }
 
     .print-report__header h1 {
-        font-size: 14pt;
+        font-size: 13pt;
         font-weight: bold;
         text-transform: uppercase;
-        margin: 0;
+        margin: 0 0 4px 0;
         color: #000000 !important;
     }
 
     .print-report__header p {
-        font-size: 8.5pt;
-        margin-top: 4px;
-        color: #000000 !important;
+        font-size: 9pt;
+        font-style: italic;
+        margin: 0;
+        color: #374151 !important;
     }
 
-    /* Tabel Murni Hitam Putih Excel */
+    /* Tabel Hitam Putih Rapi Ala Laporan Resmi */
     .print-report__table {
         width: 100%;
         border-collapse: collapse;
         font-size: 9pt;
-        margin-top: 6px;
-        background-color: #ffffff !important;
+        margin-top: 8px;
     }
 
     .print-report__table th, 
@@ -750,25 +748,31 @@ onBeforeUnmount(() => chartInstance?.destroy());
         vertical-align: middle;
         color: #000000 !important;
         background-color: #ffffff !important;
-        background: #ffffff !important;
     }
 
+    /* Header Tabel Hitam Teks Putih */
     .print-report__table th {
         font-weight: bold;
         text-align: center;
         text-transform: uppercase;
         font-size: 8.5pt;
-        border-bottom: 2px solid #000000 !important;
+        background-color: #111827 !important;
+        color: #ffffff !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
     }
 
     .print-report__table td.text-center {
         text-align: center;
     }
 
+    .print-report__table td.text-right {
+        text-align: right;
+    }
+
     .print-report__table tr {
         break-inside: avoid;
         page-break-inside: avoid;
-        background-color: #ffffff !important;
     }
 }
 </style>

@@ -24,7 +24,10 @@ class RekapController extends Controller
         $sellers = User::where('role', 'penjual')
             ->with(['dataPenjual', 'produk'])
             ->withCount([
-                'produk as total_produk_count',
+                // HANYA menghitung produk aktif yang SUDAH DI-ACC ADMIN (Disetujui)
+                'produk as total_produk_count' => function ($q) {
+                    $q->where('status_moderasi', 'disetujui');
+                },
                 // HANYA menghitung produk baru 7 hari terakhir YANG SUDAH DI-ACC ADMIN
                 'produk as produk_baru_count' => function ($q) use ($sevenDaysAgo) {
                     $q->where('created_at', '>=', $sevenDaysAgo)
@@ -58,23 +61,18 @@ class RekapController extends Controller
             $isSuspended = ($statusToko === 'suspended');
             $isTutup = ($statusToko === 'tutup');
 
-            // Logika Badge Keaktifan yang Disesuaikan
+            // Logika Badge Keaktifan
             $activityBadge = 'active';
 
             if ($isSuspended) {
-                // 1. Prioritas utama: Akun di-suspend Admin
                 $activityBadge = 'suspended';
             } elseif ($totalProduk === 0) {
-                // 2. Toko baru terdaftar tapi belum punya produk
                 $activityBadge = 'new';
             } elseif ($produkBaru > 0) {
-                // 3. Jika ada produk baru (7 hari terakhir), status keaktifan adalah AKTIF (meski toko lagi BUKA/TUTUP)
                 $activityBadge = 'active';
             } elseif ($isTutup) {
-                // 4. Jika 7 hari tidak ada produk baru & posisi toko sedang TUTUP
                 $activityBadge = 'closed';
             } else {
-                // 5. Jika 7 hari tidak ada produk baru & posisi toko sedang BUKA (Perlu Ditinjau)
                 $activityBadge = 'passive';
             }
 
@@ -105,7 +103,6 @@ class RekapController extends Controller
             'total_passive'         => $sellersData->where('activity_badge', 'passive')->count(),
             'total_suspended'       => $sellersData->where('activity_badge', 'suspended')->count(),
             'total_penjual'         => $sellersData->count(),
-            // HANYA produk baru 7 hari terakhir yang sudah disetujui admin
             'new_products_week'     => Produk::where('created_at', '>=', $sevenDaysAgo)->where('status_moderasi', 'disetujui')->count(),
             'deleted_products_week' => $deletedProductsWeek,
         ];
@@ -127,9 +124,6 @@ class RekapController extends Controller
         ]);
     }
 
-    /**
-     * Toggle Suspend khusus oleh Admin ('suspended' <-> 'buka')
-     */
     public function toggleSuspend($username)
     {
         try {
