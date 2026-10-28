@@ -4,7 +4,7 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
-        <title inertia>{{ config('app.name', 'SiswaMart') }}</title>
+        <title inertia>Katalog Digital SiswaMart - SMKN 11 Bandung</title>
 
         <!-- META DESKRIPSI UMUM UNTUK GOOGLE & SEO -->
         <meta name="description" content="Platform e-commerce resmi warga SMKN 11 Bandung tempat jual beli produk kreatif, kuliner, dan karya siswa secara online dengan mudah dan aman.">

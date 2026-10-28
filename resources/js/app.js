@@ -20,7 +20,7 @@ router.on('invalid', (event) => {
 });
 
 createInertiaApp({
-    title: (title) => `${title}`,
+    title: (title) => title ? (title.includes('SMKN 11 Bandung') ? title : `${title} - SMKN 11 Bandung`) : 'Katalog Digital SiswaMart - SMKN 11 Bandung',
     resolve: (name) =>
         resolvePageComponent(
             `./Pages/${name}.vue`,
