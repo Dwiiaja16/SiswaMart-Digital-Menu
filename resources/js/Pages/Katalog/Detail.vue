@@ -322,7 +322,7 @@ const rejectProduct = () => {
 </script>
 
 <template>
-    <Head :title="(product.nama_produk || 'Detail Produk') + ' - SiswaMart'" />
+    <Head title="SiswaMart Digital Menu" />
 
     <div class="detail-page min-h-screen text-gray-900 font-sans pb-24 selection:bg-orange-500 selection:text-white">
         <div class="ambient-grid" aria-hidden="true"></div>
