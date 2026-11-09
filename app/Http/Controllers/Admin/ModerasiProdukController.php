@@ -1,5 +1,9 @@
 <?php
 
+/**
+ * HTTP endpoints for administrator product moderation.
+ */
+
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
@@ -13,8 +17,22 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * Lists and moderates submitted products for administrator review.
+ *
+ * Only administrators may approve, reject, or remove product listings.
+ */
 class ModerasiProdukController extends Controller
 {
+    /**
+     * Show products with optional name/owner prefix and category filters.
+     *
+     * @param Request $request Search and category filters from the moderation page.
+     * @return \Inertia\Response Inertia response for the administrator product queue.
+     * @precondition The caller must be an authenticated administrator.
+     * @side-effects Reads product, seller, and category records without changing moderation status.
+     * @throws \Symfony\Component\HttpKernel\Exception\HttpException 403 when the caller is not an administrator.
+     */
     public function index(Request $request)
     {
         if (!auth()->check() || !auth()->user()->isAdmin()) {
@@ -62,13 +80,23 @@ class ModerasiProdukController extends Controller
         ]);
     }
 
+    /**
+     * Remove a product and its stored image files from administrator moderation.
+     *
+     * @param int|string $id_produk Product primary key from the route.
+     * @return \Illuminate\Http\RedirectResponse Redirect with a completion message.
+     * @precondition The caller must be an authenticated administrator and the product must exist.
+     * @side-effects Deletes stored product images, related reviews and notifications, and the product record.
+     * @throws \Symfony\Component\HttpKernel\Exception\HttpException 403 when the caller is not an administrator.
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException When the product does not exist.
+     */
     public function destroy($id_produk)
     {
         if (!auth()->check() || !auth()->user()->isAdmin()) {
             abort(403, 'Aksi ini hanya untuk Admin.');
         }
 
-        // 1. Cari produk tanpa memicu error jika kolom 'id' tidak ada di database
+        // Support installations whose legacy schema still exposes the alternate primary-key column.
         $produk = Produk::where('id_produk', $id_produk)
             ->when(Schema::hasColumn('produks', 'id'), function ($query) use ($id_produk) {
                 $query->orWhere('id', $id_produk);
@@ -77,7 +105,6 @@ class ModerasiProdukController extends Controller
 
         $targetId = $produk->id_produk ?? $id_produk;
 
-        // 2. Hapus berkas gambar produk dari storage
         if (!empty($produk->foto_produk)) {
             $photos = is_array($produk->foto_produk) 
                 ? $produk->foto_produk 
@@ -97,16 +124,25 @@ class ModerasiProdukController extends Controller
             }
         }
 
-        // 3. Bersihkan data relasi terkait jika ada (dikemas try-catch agar aman)
+        // Remove dependent records explicitly because these relations may lack cascading foreign keys.
         try { Ulasan::where('id_produk', $targetId)->delete(); } catch (\Exception $e) {}
         try { Notifikasi::where('id_produk', $targetId)->delete(); } catch (\Exception $e) {}
 
-        // 4. Hapus record produk dari database
         $produk->delete();
 
         return redirect()->back()->with('success', 'Produk berhasil dihapus dari katalog oleh Admin!');
     }
 
+    /**
+     * Approve a product so it may appear in the public catalog.
+     *
+     * @param int|string $id_produk Product primary key from the route.
+     * @return \Illuminate\Http\RedirectResponse Redirect with a moderation confirmation.
+     * @precondition The caller must be an authenticated administrator and the product must exist.
+     * @side-effects Sets status_moderasi to "disetujui".
+     * @throws \Symfony\Component\HttpKernel\Exception\HttpException 403 when the caller is not an administrator.
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException When the product does not exist.
+     */
     public function approve($id_produk)
     {
         if (!auth()->check() || !auth()->user()->isAdmin()) {
@@ -119,6 +155,16 @@ class ModerasiProdukController extends Controller
         return redirect()->back()->with('success', "Produk '{$produk->nama_produk}' disetujui & tayang di katalog!");
     }
 
+    /**
+     * Reject a product so it remains unavailable in the public catalog.
+     *
+     * @param int|string $id_produk Product primary key from the route.
+     * @return \Illuminate\Http\RedirectResponse Redirect with a moderation confirmation.
+     * @precondition The caller must be an authenticated administrator and the product must exist.
+     * @side-effects Sets status_moderasi to "ditolak".
+     * @throws \Symfony\Component\HttpKernel\Exception\HttpException 403 when the caller is not an administrator.
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException When the product does not exist.
+     */
     public function reject($id_produk)
     {
         if (!auth()->check() || !auth()->user()->isAdmin()) {

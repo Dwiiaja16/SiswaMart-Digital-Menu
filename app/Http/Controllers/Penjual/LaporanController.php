@@ -1,5 +1,9 @@
 <?php
 
+/**
+ * HTTP endpoints for seller performance and product reporting.
+ */
+
 namespace App\Http\Controllers\Penjual;
 
 use App\Http\Controllers\Controller;
@@ -9,8 +13,21 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
+/**
+ * Builds a seller report from approved products and their associated reviews.
+ *
+ * Pending or rejected listings are excluded from public-performance metrics.
+ */
 class LaporanController extends Controller
 {
+    /**
+     * Show product performance, recent reviews, and seven-day activity for the seller.
+     *
+     * @param Request $request Current HTTP request; query filters are not used by this report.
+     * @return \Inertia\Response|\Illuminate\Http\RedirectResponse Seller report page, or redirect to login when unauthenticated.
+     * @precondition The seller must be authenticated.
+     * @side-effects Reads approved products and associated reviews; report metrics exclude products awaiting or denied moderation.
+     */
     public function index(Request $request)
     {
         $user = Auth::user();

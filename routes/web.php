@@ -40,8 +40,9 @@ Route::get('/tentang-kami', fn() => Inertia::render('TentangKami/Index'))->name(
 Route::post('/products/{product}/reviews', [UlasanController::class, 'store'])->name('reviews.store');
 
 // Google OAuth
-Route::get('/auth/google', [GoogleController::class, 'redirectToGoogle'])->name('google.login');
-Route::get('/auth/google/callback', [GoogleController::class, 'handleGoogleCallback']);
+Route::get('/auth/google', [GoogleController::class, 'redirectToGoogle'])->name('auth.google');
+Route::get('/auth/google/login', [GoogleController::class, 'redirectToGoogle'])->name('google.login');
+Route::get('/auth/google/callback', [GoogleController::class, 'handleGoogleCallback'])->name('auth.google.callback');
 
 
 /*
@@ -201,6 +202,12 @@ Route::middleware(['auth'])->group(function () {
         // Moderasi Ulasan Admin
         Route::get('/moderasi-ulasan', [UlasanController::class, 'moderationIndex'])->name('reviews.moderation');
         Route::delete('/moderasi-ulasan/{review}', [UlasanController::class, 'destroy'])->name('reviews.destroy');
+
+        // Rekapitulasi Penjual & Toggle Suspend
+        Route::get('/recap', [RekapController::class, 'index'])->name('recap');
+        // ROUTE BARU: Laporan Detail Penjual (Lifetime)
+        Route::get('/recap/{username}', [RekapController::class, 'show'])->name('recap.show');
+        Route::patch('/recap/{username}/toggle-suspend', [RekapController::class, 'toggleSuspend'])->name('recap.toggle-suspend');
     });
 
     // Profil User & OAuth Disconnect

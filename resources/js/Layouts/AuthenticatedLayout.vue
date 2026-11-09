@@ -291,12 +291,12 @@ const isRouteActive = (routeName) => {
 
 <template>
     <div
-        class="min-h-screen bg-[#fffaf3] text-[#362415] font-sans selection:bg-[#F25C05] selection:text-white flex flex-col w-full relative overflow-x-hidden"
+        class="min-h-screen bg-stone-50 text-gray-900 font-sans selection:bg-[#F25C05] selection:text-white flex flex-col w-full relative"
     >
 
-        <!-- NAVBAR HEADER UTAMA -->
+        <!-- NAVBAR HEADER UTAMA (LOCKED STICKY TOPBAR) -->
         <nav
-            class="bg-white border-b-4 border-[#362415] z-30 px-4 sm:px-6 shrink-0 w-full sticky top-0 shadow-xs"
+            class="sticky top-0 z-40 w-full bg-white border-b-2 border-gray-900 shadow-sm px-4 sm:px-6 shrink-0"
         >
             <div class="w-full flex justify-between items-center h-16">
 
@@ -800,10 +800,10 @@ const isRouteActive = (routeName) => {
 
             <!-- MAIN CONTENT AREA -->
             <main
-                class="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 z-10"
+                class="flex-1 w-full min-w-0"
             >
                 <div
-                    class="max-w-7xl mx-auto space-y-6"
+                    class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6"
                 >
                     <slot />
                 </div>
@@ -813,7 +813,7 @@ const isRouteActive = (routeName) => {
         <!-- MODAL LOGOUT -->
         <div
             v-if="showLogoutModal"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4"
+            class="fixed inset-0 z-60 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4"
         >
             <div
                 class="bg-white border-4 border-[#362415] rounded-3xl w-full max-w-sm p-6 shadow-[8px_8px_0px_0px_#362415] space-y-4 text-center"

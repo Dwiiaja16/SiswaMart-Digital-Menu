@@ -1,5 +1,9 @@
 <?php
 
+/**
+ * HTTP endpoints for seller-owned product catalog operations.
+ */
+
 namespace App\Http\Controllers\Penjual;
 
 use App\Http\Controllers\Controller;
@@ -12,8 +16,22 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
+/**
+ * Manages seller product listings and their uploaded image assets.
+ *
+ * Product changes are scoped to the authenticated seller, and newly created
+ * listings require administrator moderation before appearing in the catalog.
+ */
 class ProdukController extends Controller
 {
+    /**
+     * Show the authenticated seller's products and optional category/name filters.
+     *
+     * @param Request $request Request carrying the optional kategori_id and search filters.
+     * @return \Inertia\Response|\Illuminate\Http\RedirectResponse Product-management page, or redirect to login when unauthenticated.
+     * @precondition The caller should be an authenticated seller; unauthenticated requests are redirected to login.
+     * @side-effects Loads the seller's products with categories and reviews; does not modify records.
+     */
     public function index(Request $request)
     {
         $user = Auth::user();
@@ -29,7 +47,7 @@ class ProdukController extends Controller
             ->when($categoryId, function ($query, $categoryId) {
                 $query->where('id_kategori', $categoryId);
             })
-            // Filter database berdasarkan HURUF DEPAN nama produk
+            // Seller search intentionally follows the product manager's prefix-match rule.
             ->when($search, function ($query, $search) {
                 $query->where('nama_produk', 'LIKE', $search . '%');
             })
@@ -50,11 +68,28 @@ class ProdukController extends Controller
         ]);
     }
 
+    /**
+     * Delegate product-detail rendering to the public catalog controller.
+     *
+     * @param int|string $id_produk Product primary key from the route.
+     * @return \Inertia\Response|\Illuminate\Http\RedirectResponse Catalog detail response returned by the delegated controller.
+     * @precondition The product must be resolvable by the catalog controller.
+     * @side-effects Inherits the catalog controller's view-count behavior, if applicable.
+     */
     public function show($id_produk)
     {
         return app(KatalogController::class)->show($id_produk);
     }
 
+    /**
+     * Create a product listing and store its optional cover/gallery images.
+     *
+     * @param Request $request Validated product attributes and optional uploaded image files.
+     * @return \Illuminate\Http\RedirectResponse Redirect with a success message or validation/storage error feedback.
+     * @precondition The seller must be authenticated and have a non-placeholder shop name; product fields and images must satisfy validation rules.
+     * @side-effects Stores uploaded files, creates a pending product, and attempts to create a moderation notification; notification failures are logged.
+     * @throws \Illuminate\Validation\ValidationException When request data fails validation.
+     */
     public function store(Request $request)
     {
         $user = Auth::user();
@@ -62,7 +97,6 @@ class ProdukController extends Controller
             return redirect()->route('login');
         }
 
-        // Cek Nama Toko Penjual (Satu baris pengaman ganda)
         $penjual = $user->dataPenjual;
         if (!$penjual || empty(trim($penjual->nama_toko)) || trim($penjual->nama_toko) === '-') {
             return redirect()->back()->withErrors([
@@ -89,7 +123,6 @@ class ProdukController extends Controller
         try {
             $allPhotos = [];
 
-            // 1. Simpan Foto Utama / Cover
             if ($request->hasFile('foto_produk')) {
                 $file = $request->file('foto_produk');
                 $filename = time() . '_cover_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
@@ -97,7 +130,6 @@ class ProdukController extends Controller
                 $allPhotos[] = '/storage/' . $path;
             }
 
-            // 2. Simpan Foto Pendukung / Galeri (Array Images)
             if ($request->hasFile('images')) {
                 foreach ($request->file('images') as $idx => $file) {
                     $filename = time() . '_gallery_' . $idx . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
@@ -106,7 +138,7 @@ class ProdukController extends Controller
                 }
             }
 
-            // Format Penyimpanan
+            // Keep single-image records readable by older code while storing galleries as JSON.
             $fotoPath = null;
             if (count($allPhotos) === 1) {
                 $fotoPath = $allPhotos[0];
@@ -146,6 +178,17 @@ class ProdukController extends Controller
         }
     }
 
+    /**
+     * Update a seller's product details and reconcile its stored image gallery.
+     *
+     * @param Request $request Validated product attributes, retained image paths, and optional new image files.
+     * @param int|string $id_produk Product primary key from the route.
+     * @return \Illuminate\Http\RedirectResponse Redirect with a success message or validation feedback.
+     * @precondition The product must exist and belong to the authenticated seller unless the caller is an administrator; submitted fields must pass validation.
+     * @side-effects Deletes removed image files, stores replacement/additional files, updates the product, and returns a rejected listing to pending moderation.
+     * @throws \Illuminate\Validation\ValidationException When request data fails validation.
+     * @throws \Symfony\Component\HttpKernel\Exception\HttpException When the caller is not the product owner or an administrator.
+     */
     public function update(Request $request, $id_produk)
     {
         $user = Auth::user();
@@ -180,6 +223,7 @@ class ProdukController extends Controller
         ];
 
         if ($produk->status_moderasi === 'ditolak') {
+            // A corrected rejected listing must be reviewed again before returning to the catalog.
             $data['status_moderasi'] = 'pending';
         }
 
@@ -202,6 +246,7 @@ class ProdukController extends Controller
                 foreach ($currentPhotos as $photo) {
                     if (!in_array($photo, $retained)) {
                         $filename = basename($photo);
+                        // Remove discarded assets so edits do not leave orphaned public files.
                         if ($filename && Storage::disk('public')->exists('products/' . $filename)) {
                             Storage::disk('public')->delete('products/' . $filename);
                         }
@@ -256,6 +301,15 @@ class ProdukController extends Controller
         return redirect()->back()->with('success', 'Produk berhasil diperbarui!');
     }
 
+    /**
+     * Soft-delete a product while preserving its historical record and related reporting context.
+     *
+     * @param int|string $id_produk Product primary key from the route.
+     * @return \Illuminate\Http\RedirectResponse Redirect with a success message.
+     * @precondition The product must exist and belong to the authenticated seller unless the caller is an administrator.
+     * @side-effects Sets the product's deleted_at timestamp so default catalog queries no longer return it.
+     * @throws \Symfony\Component\HttpKernel\Exception\HttpException When the caller is not the product owner or an administrator.
+     */
     public function destroy($id_produk)
     {
         $user = Auth::user();
@@ -265,7 +319,7 @@ class ProdukController extends Controller
             abort(403, 'Akses ditolak.');
         }
 
-        // Jalankan Soft Delete (Menutupi dari katalog publik dan mengisi deleted_at)
+        // Preserve report history while removing the listing from default catalog queries.
         $produk->delete();
 
         return redirect()->back()->with('success', 'Produk berhasil dihapus!');

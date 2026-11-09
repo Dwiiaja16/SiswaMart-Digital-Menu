@@ -36,8 +36,10 @@ const user = usePage().props.auth.user;
                     </div>
 
                     <!-- Avatar Initial -->
-                    <div class="w-16 h-16 bg-white border-3 border-gray-900 rounded-2xl flex items-center justify-center font-black text-3xl text-gray-900 shadow-[4px_4px_0px_0px_rgba(17,24,39,1)] shrink-0">
-                        {{ user.username ? user.username.charAt(0).toUpperCase() : 'U' }}
+                    <div class="w-16 h-16 bg-white border-3 border-gray-900 rounded-2xl flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(17,24,39,1)] shrink-0">
+                        <svg class="w-8 h-8 text-gray-900" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
                     </div>
                 </div>
 

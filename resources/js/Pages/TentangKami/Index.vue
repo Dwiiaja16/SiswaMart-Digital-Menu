@@ -13,7 +13,7 @@ const toggleMobileMenu = () => {
     <Head title="Tentang Kami - SiswaMart SMKN 11 Bandung" />
 
     <div
-        class="min-h-screen bg-[#F4F0E6] text-[#362415] font-sans selection:bg-[#F25C05] selection:text-[#F4F0E6] pb-20 sm:pb-24 overflow-x-hidden relative"
+        class="min-h-screen bg-[#F4F0E6] text-[#362415] font-sans selection:bg-[#F25C05] selection:text-[#F4F0E6] pb-20 sm:pb-24 overflow-x-clip relative"
     >
         <!-- BACKGROUND BLOBS OATSIDE STYLE -->
         <div class="fixed inset-0 z-0 pointer-events-none opacity-40 sm:opacity-50 overflow-hidden">
@@ -28,9 +28,9 @@ const toggleMobileMenu = () => {
             ></div>
         </div>
 
-        <!-- HEADER STICKY RESPONSIVE DENGAN MOBILE DRAWER -->
+        <!-- HEADER STICKY RESPONSIVE DENGAN MOBILE DRAWER (Z-40) -->
         <header
-            class="sticky top-0 z-50 px-3 sm:px-6 py-2.5 sm:py-3 transition-all duration-200"
+            class="sticky top-0 z-40 px-3 sm:px-6 py-2.5 sm:py-3 transition-all duration-200 bg-[#F4F0E6]/80 backdrop-blur-md"
         >
             <div
                 class="max-w-5xl mx-auto bg-[#F4F0E6]/95 sm:bg-[#F4F0E6]/90 backdrop-blur-md border-2 border-[#362415] rounded-2xl sm:rounded-full px-3.5 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-2 sm:gap-6 shadow-sm sm:shadow-[0_8px_20px_rgba(54,36,21,0.06)]"
@@ -88,7 +88,7 @@ const toggleMobileMenu = () => {
                         :href="route('login')"
                         class="px-5 py-2 rounded-full bg-[#F25C05] text-[#F4F0E6] text-xs sm:text-sm font-bold hover:bg-[#362415] transition-colors duration-200"
                     >
-                        Login
+                        Masuk
                     </Link>
                 </div>
 

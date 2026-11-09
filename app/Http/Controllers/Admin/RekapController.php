@@ -21,9 +21,10 @@ class RekapController extends Controller
         // Pengecekan aman apakah model Produk menggunakan trait SoftDeletes
         $hasSoftDeletes = in_array(\Illuminate\Database\Eloquent\SoftDeletes::class, class_uses_recursive(Produk::class));
 
-        $sellers = User::where('role', 'penjual')
-            ->with(['dataPenjual', 'produk'])
-            ->withCount([
+        $sellerQuery = function () use ($sevenDaysAgo, $hasSoftDeletes) {
+            return User::where('role', 'penjual')
+                ->with(['dataPenjual', 'produk'])
+                ->withCount([
                 // HANYA menghitung produk aktif yang SUDAH DI-ACC ADMIN (Disetujui)
                 'produk as total_produk_count' => function ($q) {
                     $q->where('status_moderasi', 'disetujui');
@@ -41,8 +42,11 @@ class RekapController extends Controller
                         $q->whereRaw('1 = 0');
                     }
                 },
-            ])
-            ->get();
+                ]);
+        };
+
+        // Semua data lifetime dipakai untuk statistik, pencarian global, dan ekspor.
+        $allSellerModels = $sellerQuery()->get();
 
         $reviewCounts = Ulasan::query()
             ->join('produk', 'ulasan.id_produk', '=', 'produk.id_produk')
@@ -50,7 +54,7 @@ class RekapController extends Controller
             ->groupBy('produk.username')
             ->pluck('total_reviews_count', 'produk.username');
 
-        $sellersData = $sellers->map(function ($seller) use ($sevenDaysAgo, $reviewCounts) {
+        $mapSeller = function ($seller) use ($reviewCounts) {
             $penjual = $seller->dataPenjual;
             $totalProduk = (int) ($seller->total_produk_count ?? 0);
             $produkBaru = (int) ($seller->produk_baru_count ?? 0);
@@ -92,35 +96,96 @@ class RekapController extends Controller
                 'total_reviews_count'  => (int) ($reviewCounts[$seller->username] ?? 0),
                 'activity_badge'       => $activityBadge,
             ];
-        });
+        };
+
+        $allSellers = $allSellerModels->map($mapSeller)->values();
 
         $deletedProductsWeek = $hasSoftDeletes
             ? Produk::onlyTrashed()->where('deleted_at', '>=', $sevenDaysAgo)->count()
             : 0;
 
         $stats = [
-            'total_active'          => $sellersData->where('activity_badge', 'active')->count(),
-            'total_passive'         => $sellersData->where('activity_badge', 'passive')->count(),
-            'total_suspended'       => $sellersData->where('activity_badge', 'suspended')->count(),
-            'total_penjual'         => $sellersData->count(),
+            'total_active'          => $allSellers->where('activity_badge', 'active')->count(),
+            'total_passive'         => $allSellers->where('activity_badge', 'passive')->count(),
+            'total_suspended'       => $allSellers->where('activity_badge', 'suspended')->count(),
+            'total_penjual'         => $allSellers->count(),
             'new_products_week'     => Produk::where('created_at', '>=', $sevenDaysAgo)->where('status_moderasi', 'disetujui')->count(),
             'deleted_products_week' => $deletedProductsWeek,
         ];
 
-        $page = (int) request()->get('page', 1);
-        $perPage = 10;
-        $paginatedSellers = new \Illuminate\Pagination\LengthAwarePaginator(
-            $sellersData->forPage($page, $perPage)->values(),
-            $sellersData->count(),
-            $perPage,
-            $page,
-            ['path' => request()->url(), 'query' => request()->query()]
-        );
+        // Tabel utama tetap ringan dengan pagination query-native.
+        $sellers = $sellerQuery()
+            ->paginate(10)
+            ->withQueryString();
+        $sellers->setCollection($sellers->getCollection()->map($mapSeller)->values());
 
         return Inertia::render('Admin/Laporan/Index', [
-            'sellers'    => $paginatedSellers,
-            'chartShops' => $sellersData->values(),
+            'sellers'    => $sellers,
+            'allSellers' => $allSellers,
+            'chartShops' => $allSellers,
             'stats'      => $stats,
+        ]);
+    }
+
+    /**
+     * Laporan Detail Rekapitulasi Penjual (Lifetime Admin Audit)
+     */
+    public function show($username)
+    {
+        // 1. Ambil Data User Penjual beserta Data Penjual (Profil Toko)
+        $seller = User::where('username', $username)
+            ->where('role', 'penjual')
+            ->with('dataPenjual')
+            ->firstOrFail();
+
+        // 2. Query dasar seluruh produk penjual lifetime
+        $baseProductQuery = Produk::where('username', $username)
+            ->with(['kategori'])
+            ->withAvg('ulasan', 'rating')
+            ->withCount('ulasan')
+            ->latest();
+
+        // Ambil SEMUA produk lifetime untuk statistik, distribusi rating, dan export lengkap
+        $allProducts = (clone $baseProductQuery)->get();
+
+        // 3. Kalkulasi Statistik Lifetime dari SELURUH produk penjual
+        $totalProducts    = $allProducts->count();
+        $approvedProducts = $allProducts->where('status_moderasi', 'disetujui')->count();
+        $pendingProducts  = $allProducts->where('status_moderasi', 'pending')->count();
+        $rejectedProducts = $allProducts->where('status_moderasi', 'ditolak')->count();
+
+        $productIds   = $allProducts->pluck('id_produk');
+        $totalReviews = Ulasan::whereIn('id_produk', $productIds)->count();
+        $avgRating    = Ulasan::whereIn('id_produk', $productIds)->avg('rating');
+
+        // Distribusi Bintang Ulasan (1 s/d 5)
+        $ratingDistribution = [
+            5 => Ulasan::whereIn('id_produk', $productIds)->where('rating', 5)->count(),
+            4 => Ulasan::whereIn('id_produk', $productIds)->where('rating', 4)->count(),
+            3 => Ulasan::whereIn('id_produk', $productIds)->where('rating', 3)->count(),
+            2 => Ulasan::whereIn('id_produk', $productIds)->where('rating', 2)->count(),
+            1 => Ulasan::whereIn('id_produk', $productIds)->where('rating', 1)->count(),
+        ];
+
+        // 4. Ambil data produk dengan Pagination (10 per halaman) untuk tabel Inertia
+        $products = (clone $baseProductQuery)
+            ->paginate(10)
+            ->withQueryString();
+
+        return Inertia::render('Admin/Laporan/Detail', [
+            'seller'             => $seller,
+            'products'           => $products,
+            'allProducts'        => $allProducts,
+            'stats'              => [
+                'total_products'     => $totalProducts,
+                'approved_products'  => $approvedProducts,
+                'pending_products'   => $pendingProducts,
+                'rejected_products'  => $rejectedProducts,
+                'compliance_rate'    => $totalProducts > 0 ? round(($approvedProducts / $totalProducts) * 100) : 0,
+                'total_reviews'      => $totalReviews,
+                'avg_shop_rating'    => $avgRating ? number_format($avgRating, 1) : '0.0',
+            ],
+            'ratingDistribution' => $ratingDistribution,
         ]);
     }
 

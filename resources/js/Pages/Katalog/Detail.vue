@@ -324,13 +324,13 @@ const rejectProduct = () => {
 <template>
     <Head title="SiswaMart Digital Menu" />
 
-    <div class="detail-page min-h-screen text-gray-900 font-sans pb-24 selection:bg-orange-500 selection:text-white">
+    <div class="detail-page min-h-screen text-gray-900 font-sans pb-24 pt-20 selection:bg-orange-500 selection:text-white">
         <div class="ambient-grid" aria-hidden="true"></div>
         <div class="ambient-orb orb-one" aria-hidden="true"></div>
         <div class="ambient-orb orb-two" aria-hidden="true"></div>
 
-        <!-- Sticky Header Navbar -->
-        <header class="site-nav sticky top-0 z-50">
+       <!-- Fixed Header Navbar (z-50) -->
+        <header class="site-nav fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-stone-200/80">
             <div class="nav-inner max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
                 <div class="flex items-center gap-3">
                     <Link :href="route('catalog.index')" :preserve-state="false" class="brand flex items-center">

@@ -16,12 +16,16 @@ class ProfileUpdateRequest extends FormRequest
      */
     public function rules(): array
     {
+        $userId = $this->user()?->user_id;
+
         return [
-            'username'        => ['required', 'string', 'max:50', 'unique:users,username,' . $this->user()->id],
-            'whatsapp_number' => ['required', 'string', 'max:20'],
-            'email'           => ['nullable', 'string', 'email', 'max:255', 'unique:users,email,' . $this->user()->id],
-            'name'            => ['nullable', 'string', 'max:255'], // Tambahkan ini (Nama Toko)
-            'shop_name'       => ['nullable', 'string', 'max:255'], // Tambahkan ini
+            'username'         => ['required', 'string', 'max:50', Rule::unique('users', 'username')->ignore($userId, 'user_id')],
+            'whatsapp_number'  => ['nullable', 'string', 'max:20'],
+            'email'            => ['nullable', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId, 'user_id')],
+            'name'             => ['nullable', 'string', 'max:255'],
+            'shop_name'        => ['nullable', 'string', 'max:255'],
+            'current_password' => ['nullable', 'string'],
+            'password'         => ['nullable', 'string', 'min:6'], // Diubah ke minimal 6 karakter
         ];
     }
 }

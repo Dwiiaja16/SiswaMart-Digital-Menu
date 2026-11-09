@@ -1,5 +1,9 @@
 <?php
 
+/**
+ * HTTP endpoints for administrator-managed seller accounts and profiles.
+ */
+
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
@@ -13,8 +17,21 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 
+/**
+ * Creates, updates, lists, and deletes seller accounts on behalf of administrators.
+ *
+ * Account/profile writes are coordinated so username changes remain consistent
+ * across seller-owned records and file replacements do not retain obsolete images.
+ */
 class PenjualController extends Controller
 {
+    /**
+     * Show the paginated seller list with each seller's profile and products.
+     *
+     * @return \Inertia\Response Inertia response for the administrator seller-management page.
+     * @precondition The route must be protected by the administrator role middleware.
+     * @side-effects Reads seller, profile, and product records without modifying them.
+     */
     public function index()
     {
         // Ambil data seluruh penjual beserta data profil dan produknya (10 per halaman)
@@ -29,6 +46,15 @@ class PenjualController extends Controller
         ]);
     }
 
+    /**
+     * Create a seller login and its corresponding shop profile.
+     *
+     * @param Request $request Validated account, contact, profile, password, and optional seller-image data.
+     * @return \Illuminate\Http\RedirectResponse Redirect with a success or operation-failure message.
+     * @precondition The route must be protected by the administrator role middleware; username and email must be unique and required profile fields valid.
+     * @side-effects Creates the user and seller profile in one transaction, hashes the password, and may store a profile image.
+     * @throws \Illuminate\Validation\ValidationException When request data fails validation.
+     */
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -90,6 +116,17 @@ class PenjualController extends Controller
         }
     }
 
+    /**
+     * Update a seller account and its profile, including linked usernames and images.
+     *
+     * @param Request $request Validated account/profile fields and optional replacement password or image.
+     * @param string $username Current seller username from the route.
+     * @return \Illuminate\Http\RedirectResponse Redirect with a success or operation-failure message.
+     * @precondition The route must be protected by the administrator role middleware; the target user must exist and supplied unique fields must pass validation.
+     * @side-effects Updates the user/profile transactionally, propagates username changes to related records, hashes an optional password, and may replace the stored profile image.
+     * @throws \Illuminate\Validation\ValidationException When request data fails validation.
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException When the target user does not exist.
+     */
     public function update(Request $request, $username)
     {
         $user = User::where('username', $username)->firstOrFail();
@@ -176,6 +213,15 @@ class PenjualController extends Controller
         }
     }
 
+    /**
+     * Delete a seller account and its associated profile image.
+     *
+     * @param string $username Seller username from the route.
+     * @return \Illuminate\Http\RedirectResponse Redirect with a success or role-restriction message.
+     * @precondition The target user must exist; administrator accounts are not eligible for deletion through this action.
+     * @side-effects Deletes the seller's profile image when present and deletes the user record; database foreign-key rules govern dependent records.
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException When the target user does not exist.
+     */
     public function destroy($username)
     {
         $user = User::where('username', $username)->firstOrFail();

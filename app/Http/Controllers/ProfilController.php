@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Http\Requests\ProfileUpdateRequest;
 
 class ProfilController extends Controller
 {
@@ -34,7 +35,7 @@ class ProfilController extends Controller
     /**
      * Perbarui informasi profil pengguna dan data penjual
      */
-    public function update(Request $request): RedirectResponse
+    public function update(ProfileUpdateRequest $request): RedirectResponse
     {
         $user = $request->user();
         $penjual = $user->dataPenjual;
@@ -54,26 +55,11 @@ class ProfilController extends Controller
             ]);
         }
 
-        $validated = $request->validate([
-            'username'         => ['required', 'string', 'max:50', 'unique:users,username,' . $user->user_id . ',user_id'],
-            'nama_lengkap'     => ['nullable', 'string', 'max:255'],
-            'nama_toko'        => ['nullable', 'string', 'max:255'],
-            'nama_kelas'       => ['nullable', 'string', 'max:50'],
-            'email'            => ['required', 'email', 'max:255', 'unique:data_penjual,email,' . ($penjual?->id_penjual ?? 'NULL') . ',id_penjual'],
-            'nomor_whatsapp'   => ['nullable', 'string', 'max:20'],
-            'alamat'           => ['nullable', 'string'],
-            'foto_penjual'     => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:2048'],
-            'current_password' => ['nullable', 'string'],
-            'password'         => ['nullable', 'string', 'min:6'],
-        ], [
-            'email.required'   => 'Email penjual wajib diisi.',
-            'email.email'      => 'Format email tidak valid.',
-            'email.unique'     => 'Email ini sudah terdaftar di akun lain.',
-        ]);
+        $validated = $request->validated();
 
-        // Verifikasi password saat ini jika mau ubah password
-        if (!empty($validated['password'])) {
-            if (empty($validated['current_password']) || !Hash::check($validated['current_password'], $user->password)) {
+        // Verifikasi password saat ini HANYA jika dikirim dari form yang memiliki input current_password
+        if (!empty($validated['password']) && !empty($validated['current_password'])) {
+            if (!Hash::check($validated['current_password'], $user->password)) {
                 return redirect()->back()->withErrors([
                     'current_password' => 'Password saat ini tidak sesuai untuk konfirmasi keamanan.'
                 ]);
@@ -84,9 +70,10 @@ class ProfilController extends Controller
             DB::beginTransaction();
 
             $oldUsername = $user->username;
-            $newUsername = strtolower(trim($validated['username']));
+            // PERBAIKAN: Hilangkan strtolower agar huruf kapital/kecil tetap sesuai input
+            $newUsername = trim($validated['username']);
 
-            // Update email di model User utama
+            // Update email & password di model User utama
             if (!empty($validated['email'])) {
                 $user->email = $validated['email'];
             }
@@ -127,23 +114,25 @@ class ProfilController extends Controller
                 $fotoPath = '/storage/' . $path;
             }
 
-            // Simpan Data Penjual (tanpa fallback email @siswamart.com)
-            DataPenjual::updateOrCreate(
-                ['username' => $newUsername],
-                [
-                    'nama_lengkap'   => $validated['nama_lengkap'] ?? $penjual?->nama_lengkap ?? $newUsername,
-                    'nama_toko'      => $validated['nama_toko'] ?? $penjual?->nama_toko,
-                    'nama_kelas'     => $validated['nama_kelas'] ?? $penjual?->nama_kelas ?? '-',
-                    'email'          => $validated['email'] ?? $penjual?->email,
-                    'nomor_whatsapp' => $validated['nomor_whatsapp'] ?? $penjual?->nomor_whatsapp ?? '',
-                    'alamat'         => $validated['alamat'] ?? $penjual?->alamat,
-                    'foto_penjual'   => $fotoPath,
-                ]
-            );
+            // Simpan Data Penjual (Hanya untuk penjual atau jika user memiliki record di data_penjual)
+            if ($user->isPenjual() || $penjual) {
+                DataPenjual::updateOrCreate(
+                    ['username' => $newUsername],
+                    [
+                        'nama_lengkap'   => $validated['nama_lengkap'] ?? $penjual?->nama_lengkap ?? $newUsername,
+                        'nama_toko'      => $validated['nama_toko'] ?? $penjual?->nama_toko,
+                        'nama_kelas'     => $validated['nama_kelas'] ?? $penjual?->nama_kelas ?? '-',
+                        'email'          => $validated['email'] ?? $penjual?->email,
+                        'nomor_whatsapp' => $validated['nomor_whatsapp'] ?? $penjual?->nomor_whatsapp ?? '',
+                        'alamat'         => $validated['alamat'] ?? $penjual?->alamat,
+                        'foto_penjual'   => $fotoPath,
+                    ]
+                );
+            }
 
             DB::commit();
 
-            return redirect()->back()->with('success', 'Profil & Data Penjual berhasil diperbarui!');
+            return redirect()->back()->with('success', 'Profil berhasil diperbarui!');
 
         } catch (\Exception $e) {
             DB::rollBack();

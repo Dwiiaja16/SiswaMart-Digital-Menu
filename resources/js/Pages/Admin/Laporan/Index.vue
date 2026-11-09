@@ -6,6 +6,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 
 const props = defineProps({
     sellers: { type: [Array, Object], default: () => [] },
+    allSellers: { type: Array, default: () => [] },
     chartShops: { type: Array, default: () => [] },
     shops: { type: Array, default: () => [] },
     stats: {
@@ -21,6 +22,9 @@ const props = defineProps({
     },
 });
 
+// State Pencarian Username / Nama Toko
+const searchQuery = ref('');
+
 // Format Hari, Tanggal, dan Tahun Hari Ini (Bahasa Indonesia)
 const formattedDate = computed(() => {
     const today = new Date();
@@ -35,6 +39,7 @@ const formattedDate = computed(() => {
 const normalizeShop = (item) => ({
     ...item,
     id: item.user_id || item.id_penjual || item.id,
+    username: item.username || '',
     nama_toko: item.nama_toko || 'TOKO ' + (item.username || '').toUpperCase(),
     nama_lengkap: item.nama_lengkap || item.username || 'Penjual',
     owner: item.owner || { username: item.username || '-' },
@@ -48,6 +53,13 @@ const normalizeShop = (item) => ({
     activity_badge: item.activity_badge || 'active',
 });
 
+// Seluruh data lifetime untuk pencarian global dan ekspor.
+const allSellersList = computed(() => {
+    if (props.allSellers.length > 0) return props.allSellers.map(normalizeShop);
+    if (props.chartShops.length > 0) return props.chartShops.map(normalizeShop);
+    return [];
+});
+
 // Normalisasi list data toko / penjual dari Controller (Halaman saat ini untuk tabel)
 const shopsList = computed(() => {
     let raw = [];
@@ -58,7 +70,17 @@ const shopsList = computed(() => {
     } else if (props.shops && props.shops.length > 0) {
         raw = props.shops;
     }
-    return raw.map(normalizeShop);
+    const normalized = raw.map(normalizeShop);
+
+    if (!searchQuery.value.trim()) return normalized;
+    const q = searchQuery.value.toLowerCase().trim();
+    return allSellersList.value.filter((shop) => {
+        return (
+            shop.username.toLowerCase().startsWith(q) ||
+            shop.nama_toko.toLowerCase().startsWith(q) ||
+            shop.nama_lengkap.toLowerCase().startsWith(q)
+        );
+    });
 });
 
 // Normalisasi untuk grafik perbandingan produk per toko
@@ -95,10 +117,8 @@ const handleExportExcel = async () => {
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('Rekap Toko');
 
-        // Tampilkan Gridlines Excel
         worksheet.views = [{ showGridLines: true }];
 
-        // Style Garis Border Hitam
         const thinBorder = {
             top: { style: 'thin', color: { argb: 'FF111827' } },
             left: { style: 'thin', color: { argb: 'FF111827' } },
@@ -106,18 +126,16 @@ const handleExportExcel = async () => {
             right: { style: 'thin', color: { argb: 'FF111827' } }
         };
 
-        // Lebar Kolom A-G
         worksheet.columns = [
             { key: 'no', width: 8 },
-            { key: 'nama_lengkap', width: 28 },
-            { key: 'nama_toko', width: 28 },
+            { key: 'nama_lengkap', width: 32 },
+            { key: 'nama_toko', width: 32 },
             { key: 'total_produk', width: 16 },
-            { key: 'total_ulasan', width: 16 },
+            { key: 'total_ulasan', width: 18 },
             { key: 'produk_baru', width: 20 },
             { key: 'produk_dihapus', width: 22 }
         ];
 
-        // 1. JUDUL LAPORAN UTAMA (A1:G1)
         worksheet.mergeCells('A1:G1');
         const titleCell = worksheet.getCell('A1');
         titleCell.value = 'LAPORAN REKAPITULASI TOKO & PENJUAL';
@@ -125,7 +143,6 @@ const handleExportExcel = async () => {
         titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
         worksheet.getRow(1).height = 24;
 
-        // Subtitle (A2:G2)
         worksheet.mergeCells('A2:G2');
         const subCell = worksheet.getCell('A2');
         subCell.value = `SiswaMart — Tanggal Rekap: ${formattedDate.value}`;
@@ -133,10 +150,8 @@ const handleExportExcel = async () => {
         subCell.alignment = { horizontal: 'center', vertical: 'middle' };
         worksheet.getRow(2).height = 18;
 
-        // Spasi Baris 3
         worksheet.getRow(3).height = 10;
 
-        // 2. HEADER TABEL (Baris 4)
         const headerRow = worksheet.getRow(4);
         headerRow.height = 26;
         headerRow.values = [
@@ -151,14 +166,13 @@ const handleExportExcel = async () => {
 
         ['A4', 'B4', 'C4', 'D4', 'E4', 'F4', 'G4'].forEach((ref) => {
             const cell = worksheet.getCell(ref);
-            cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF111827' } };
+            cell.font = { name: 'Arial', size: 9.5, bold: true, color: { argb: 'FF000000' } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E7EB' } };
             cell.alignment = { horizontal: 'center', vertical: 'middle' };
             cell.border = thinBorder;
         });
 
-        // 3. ISI DATA TOKO
-        const list = chartShopsList.value;
+        const list = allSellersList.value;
         if (list.length > 0) {
             list.forEach((shop, idx) => {
                 const rowNum = 5 + idx;
@@ -184,10 +198,10 @@ const handleExportExcel = async () => {
                 cA.alignment = { horizontal: 'center', vertical: 'middle' };
                 cB.alignment = { horizontal: 'left', vertical: 'middle' };
                 cC.alignment = { horizontal: 'left', vertical: 'middle' };
-                cD.alignment = { horizontal: 'right', vertical: 'middle' };
-                cE.alignment = { horizontal: 'right', vertical: 'middle' };
-                cF.alignment = { horizontal: 'right', vertical: 'middle' };
-                cG.alignment = { horizontal: 'right', vertical: 'middle' };
+                cD.alignment = { horizontal: 'center', vertical: 'middle' };
+                cE.alignment = { horizontal: 'center', vertical: 'middle' };
+                cF.alignment = { horizontal: 'center', vertical: 'middle' };
+                cG.alignment = { horizontal: 'center', vertical: 'middle' };
 
                 [cA, cB, cC, cD, cE, cF, cG].forEach(cell => {
                     cell.font = { name: 'Arial', size: 9.5, bold: true, color: { argb: 'FF111827' } };
@@ -207,7 +221,6 @@ const handleExportExcel = async () => {
             });
         }
 
-        // Download File .xlsx
         const buffer = await workbook.xlsx.writeBuffer();
         const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         const link = document.createElement('a');
@@ -304,7 +317,6 @@ onBeforeUnmount(() => chartInstance?.destroy());
                 <!-- Page Header -->
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
-                        <!-- TAMPILAN WAKTU & TANGGAL -->
                         <div class="inline-flex items-center gap-2 bg-amber-200 border-2 border-gray-900 px-3 py-1 rounded-xl text-[10px] sm:text-xs font-black uppercase text-gray-900 shadow-[2px_2px_0px_0px_#111827] mb-2">
                             <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -376,7 +388,6 @@ onBeforeUnmount(() => chartInstance?.destroy());
 
                 <!-- Summary Cards -->
                 <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
-                    <!-- Toko Aktif -->
                     <div class="print-avoid-break bg-white border-2 sm:border-4 border-gray-900 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-[3px_3px_0px_0px_#111827] sm:shadow-[5px_5px_0px_0px_#111827] space-y-1">
                         <div class="flex items-center justify-between mb-1">
                             <span class="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-gray-400">Toko Aktif</span>
@@ -390,7 +401,6 @@ onBeforeUnmount(() => chartInstance?.destroy());
                         <p class="text-[10px] font-bold text-gray-500 uppercase">Toko berjalan normal</p>
                     </div>
 
-                    <!-- Toko Pasif -->
                     <div class="print-avoid-break bg-white border-2 sm:border-4 border-gray-900 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-[3px_3px_0px_0px_#111827] sm:shadow-[5px_5px_0px_0px_#111827] space-y-1">
                         <div class="flex items-center justify-between mb-1">
                             <span class="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-gray-400">Perlu Ditinjau</span>
@@ -404,7 +414,6 @@ onBeforeUnmount(() => chartInstance?.destroy());
                         <p class="text-[10px] font-bold text-gray-500 uppercase">Tidak aktif 7 hari</p>
                     </div>
 
-                    <!-- Total Penjual -->
                     <div class="print-avoid-break bg-white border-2 sm:border-4 border-gray-900 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-[3px_3px_0px_0px_#111827] sm:shadow-[5px_5px_0px_0px_#111827] space-y-1">
                         <div class="flex items-center justify-between mb-1">
                             <span class="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-gray-400">Total Penjual</span>
@@ -418,7 +427,6 @@ onBeforeUnmount(() => chartInstance?.destroy());
                         <p class="text-[10px] font-bold text-gray-500 uppercase">Terdaftar di platform</p>
                     </div>
 
-                    <!-- Produk Baru -->
                     <div class="print-avoid-break bg-white border-2 sm:border-4 border-gray-900 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-[3px_3px_0px_0px_#111827] sm:shadow-[5px_5px_0px_0px_#111827] space-y-1">
                         <div class="flex items-center justify-between mb-1">
                             <span class="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-gray-400">Produk Baru (Acc)</span>
@@ -452,15 +460,32 @@ onBeforeUnmount(() => chartInstance?.destroy());
 
                 <!-- Tabel Rekap Toko -->
                 <div class="print-page-2 print-avoid-break bg-white border-2 sm:border-4 border-gray-900 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-[3px_3px_0px_0px_#111827] sm:shadow-[5px_5px_0px_0px_#111827]">
-                    <div class="flex items-center gap-3 border-b-2 border-gray-100 pb-3 mb-4">
-                        <div class="w-8 h-8 bg-[#fbbf24] border-2 border-gray-900 rounded-xl flex items-center justify-center shadow-[2px_2px_0px_0px_#111827]">
-                            <svg class="w-4 h-4 text-gray-900" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                            </svg>
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b-2 border-gray-100 pb-4 mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 bg-[#fbbf24] border-2 border-gray-900 rounded-xl flex items-center justify-center shadow-[2px_2px_0px_0px_#111827]">
+                                <svg class="w-4 h-4 text-gray-900" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h2 class="text-base sm:text-lg font-black uppercase tracking-tight text-gray-900">Keaktifan Toko</h2>
+                                <p class="text-[10px] font-bold text-gray-400 uppercase">Klik nama toko/penjual untuk melihat Laporan Detail Audit (Lifetime)</p>
+                            </div>
                         </div>
-                        <div>
-                            <h2 class="text-base sm:text-lg font-black uppercase tracking-tight text-gray-900">Keaktifan Toko</h2>
-                            <p class="text-[10px] font-bold text-gray-400 uppercase">Data rekap 7 hari terakhir</p>
+
+                        <!-- INPUT SEARCH BAR USERNAME PENJUAL -->
+                        <div class="w-full sm:w-72 print:hidden">
+                            <div class="relative">
+                                <input
+                                    v-model="searchQuery"
+                                    type="text"
+                                    placeholder="Cari Username / Nama Toko..."
+                                    class="w-full bg-white border-2 border-gray-900 rounded-xl pl-9 pr-3 py-2 text-xs font-bold text-gray-900 shadow-[2px_2px_0px_0px_#111827] focus:ring-0 focus:border-orange-500"
+                                />
+                                <svg class="w-4 h-4 text-gray-500 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                            </div>
                         </div>
                     </div>
 
@@ -473,7 +498,7 @@ onBeforeUnmount(() => chartInstance?.destroy());
                                     <th class="px-3 py-3">Status Toko</th>
                                     <th class="px-3 py-3">Terakhir Aktif</th>
                                     <th class="px-3 py-3 text-center">Total Produk</th>
-                                    <th class="px-3 py-3 text-center">Total Ulasan</th>
+                                    <th class="px-3 py-3 text-center">Total Ulasan & Rating</th>
                                     <th class="px-3 py-3 text-center">Produk Baru (7hr)</th>
                                     <th class="px-3 py-3 text-center">Dihapus (7hr)</th>
                                     <th class="px-3 py-3 text-center">Keaktifan</th>
@@ -482,9 +507,22 @@ onBeforeUnmount(() => chartInstance?.destroy());
                             </thead>
                             <tbody class="divide-y divide-gray-100">
                                 <tr v-for="shop in shopsList" :key="shop.id" class="hover:bg-[#fdf9f0] transition">
+                                    <!-- NAMA TOKO & PEMILIK (Bisa diklik mengarah ke Laporan Detail Admin) -->
                                     <td class="px-3 py-3.5">
-                                        <div class="font-black text-xs text-gray-900 uppercase">{{ shop.nama_toko }}</div>
-                                        <div class="text-[10px] font-bold text-gray-500 mt-0.5">{{ shop.nama_lengkap }}</div>
+                                        <Link
+                                            :href="route('admin.recap.show', shop.username)"
+                                            class="group inline-block cursor-pointer"
+                                        >
+                                            <div class="font-black text-xs text-gray-900 uppercase group-hover:text-orange-600 group-hover:underline flex items-center gap-1">
+                                                <span>{{ shop.nama_toko }}</span>
+                                                <svg class="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                                </svg>
+                                            </div>
+                                            <div class="text-[10px] font-bold text-gray-500 mt-0.5">
+                                                {{ shop.nama_lengkap }} <span class="text-orange-600 font-bold">(@{{ shop.username }})</span>
+                                            </div>
+                                        </Link>
                                     </td>
 
                                     <td class="px-3 py-3.5">
@@ -513,14 +551,12 @@ onBeforeUnmount(() => chartInstance?.destroy());
                                         {{ shop.total_reviews_count }}
                                     </td>
 
-                                    <!-- Produk Baru (7 Hari) -->
                                     <td class="px-3 py-3.5 text-center">
                                         <span class="text-sm font-black" :class="shop.new_products_count > 0 ? 'text-sky-600' : 'text-gray-400'">
                                             {{ shop.new_products_count }}
                                         </span>
                                     </td>
 
-                                    <!-- Produk Dihapus (7 Hari) -->
                                     <td class="px-3 py-3.5 text-center">
                                         <span class="text-sm font-black" :class="shop.deleted_products_count > 0 ? 'text-rose-600' : 'text-gray-400'">
                                             {{ shop.deleted_products_count }}
@@ -549,7 +585,7 @@ onBeforeUnmount(() => chartInstance?.destroy());
                                     <td class="print:hidden px-3 py-3.5 text-center">
                                         <button
                                             @click="openConfirm(shop)"
-                                            class="px-3 py-1.5 border-2 border-gray-900 rounded-lg font-black text-[10px] uppercase shadow-[2px_2px_0px_0px_#111827] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all active:scale-95"
+                                            class="px-3 py-1.5 border-2 border-gray-900 rounded-lg font-black text-[10px] uppercase shadow-[2px_2px_0px_0px_#111827] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all active:scale-95 cursor-pointer"
                                             :class="shop.status === 'suspended'
                                                 ? 'bg-emerald-400 hover:bg-emerald-300 text-gray-900'
                                                 : 'bg-rose-400 hover:bg-rose-300 text-gray-900'"
@@ -561,7 +597,7 @@ onBeforeUnmount(() => chartInstance?.destroy());
 
                                 <tr v-if="shopsList.length === 0">
                                     <td colspan="9" class="py-10 text-center text-xs font-black uppercase text-gray-400">
-                                        Belum ada data toko.
+                                        Tidak ada data toko ditemukan.
                                     </td>
                                 </tr>
                             </tbody>
@@ -569,13 +605,13 @@ onBeforeUnmount(() => chartInstance?.destroy());
                     </div>
 
                     <!-- PAGINATION NAVIGATION -->
-                    <Pagination :links="sellers.links || []" :meta="sellers" />
+                    <Pagination v-if="!searchQuery.trim()" :links="sellers.links || []" :meta="sellers" />
                 </div>
 
             </div>
         </div>
 
-        <!-- PRINT REPORT (PRESISI SAMA DENGAN EXCEL - HITAM PUTIH RESMI) -->
+        <!-- PRINT REPORT -->
         <section class="print-report">
             <div class="print-report__header">
                 <h1>LAPORAN REKAPITULASI TOKO & PENJUAL</h1>
@@ -585,17 +621,17 @@ onBeforeUnmount(() => chartInstance?.destroy());
             <table class="print-report__table">
                 <thead>
                     <tr>
-                        <th style="width: 5%;">NO.</th>
-                        <th style="width: 25%;">NAMA PENJUAL</th>
-                        <th style="width: 22%;">NAMA TOKO</th>
-                        <th style="width: 12%;">TOTAL PRODUK</th>
-                        <th style="width: 12%;">TOTAL ULASAN</th>
-                        <th style="width: 12%;">PRODUK BARU (7HR)</th>
-                        <th style="width: 12%;">PRODUK DIHAPUS (7HR)</th>
+                        <th style="width: 6%;">NO.</th>
+                        <th style="width: 26%;">NAMA PENJUAL</th>
+                        <th style="width: 24%;">NAMA TOKO</th>
+                        <th style="width: 11%;">TOTAL PRODUK</th>
+                        <th style="width: 15%;">TOTAL ULASAN & RATING</th>
+                        <th style="width: 9%;">PRODUK BARU (7HR)</th>
+                        <th style="width: 9%;">PRODUK DIHAPUS (7HR)</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="(shop, index) in chartShopsList" :key="`print-${shop.id}`">
+                    <tr v-for="(shop, index) in allSellersList" :key="`print-${shop.id}`">
                         <td class="text-center">{{ index + 1 }}</td>
                         <td>{{ shop.nama_lengkap }}</td>
                         <td>{{ shop.nama_toko }}</td>
@@ -604,7 +640,7 @@ onBeforeUnmount(() => chartInstance?.destroy());
                         <td class="text-right">{{ shop.new_products_count }}</td>
                         <td class="text-right">{{ shop.deleted_products_count }}</td>
                     </tr>
-                    <tr v-if="chartShopsList.length === 0">
+                    <tr v-if="allSellersList.length === 0">
                         <td colspan="7" class="text-center">Belum ada data toko.</td>
                     </tr>
                 </tbody>
@@ -647,14 +683,14 @@ onBeforeUnmount(() => chartInstance?.destroy());
                         <button
                             @click="closeConfirm"
                             :disabled="isSubmitting"
-                            class="flex-1 py-2.5 border-2 border-gray-900 rounded-xl font-black text-xs uppercase tracking-widest bg-white hover:bg-stone-100 shadow-[3px_3px_0px_0px_#111827] hover:shadow-none hover:translate-x-[3px] hover:translate-y-[3px] transition-all disabled:opacity-50"
+                            class="flex-1 py-2.5 border-2 border-gray-900 rounded-xl font-black text-xs uppercase tracking-widest bg-white hover:bg-stone-100 shadow-[3px_3px_0px_0px_#111827] hover:shadow-none hover:translate-x-[3px] hover:translate-y-[3px] transition-all disabled:opacity-50 cursor-pointer"
                         >
                             Batal
                         </button>
                         <button
                             @click="doToggleSuspend"
                             :disabled="isSubmitting"
-                            class="flex-1 py-2.5 border-2 border-gray-900 rounded-xl font-black text-xs uppercase tracking-widest shadow-[3px_3px_0px_0px_#111827] hover:shadow-none hover:translate-x-[3px] hover:translate-y-[3px] transition-all disabled:opacity-50"
+                            class="flex-1 py-2.5 border-2 border-gray-900 rounded-xl font-black text-xs uppercase tracking-widest shadow-[3px_3px_0px_0px_#111827] hover:shadow-none hover:translate-x-[3px] hover:translate-y-[3px] transition-all disabled:opacity-50 cursor-pointer"
                             :class="confirmShop.status === 'suspended' ? 'bg-emerald-400 hover:bg-emerald-300' : 'bg-rose-400 hover:bg-rose-300'"
                         >
                             {{ isSubmitting ? 'Memproses...' : (confirmShop.status === 'suspended' ? 'Ya, Aktifkan' : 'Ya, Suspend') }}
@@ -678,7 +714,6 @@ onBeforeUnmount(() => chartInstance?.destroy());
         margin: 10mm;
     }
 
-    /* Paksa background murni putih */
     html, 
     body, 
     #app, 
@@ -690,7 +725,6 @@ onBeforeUnmount(() => chartInstance?.destroy());
         box-shadow: none !important;
     }
 
-    /* Sembunyikan navigasi, sidebar, dan elemen UI layar biasa */
     nav, 
     header:not(.print-report__header), 
     sidebar, 
@@ -700,7 +734,6 @@ onBeforeUnmount(() => chartInstance?.destroy());
         display: none !important;
     }
 
-    /* Tampilan Laporan Cetak PDF (Hitam Putih Presisi) */
     .print-report {
         display: block !important;
         width: 100% !important;
@@ -710,7 +743,6 @@ onBeforeUnmount(() => chartInstance?.destroy());
         font-family: Arial, sans-serif !important;
     }
 
-    /* Judul Laporan & Subtitle Tanggal (Tampil Rapi di Atas Tabel) */
     .print-report__header {
         display: block !important;
         text-align: center;
@@ -733,7 +765,6 @@ onBeforeUnmount(() => chartInstance?.destroy());
         color: #374151 !important;
     }
 
-    /* Tabel Hitam Putih Rapi Ala Laporan Resmi */
     .print-report__table {
         width: 100%;
         border-collapse: collapse;
@@ -750,14 +781,14 @@ onBeforeUnmount(() => chartInstance?.destroy());
         background-color: #ffffff !important;
     }
 
-    /* Header Tabel Hitam Teks Putih */
     .print-report__table th {
         font-weight: bold;
         text-align: center;
         text-transform: uppercase;
         font-size: 8.5pt;
-        background-color: #111827 !important;
-        color: #ffffff !important;
+        background-color: #e5e7eb !important;
+        color: #000000 !important;
+        border: 1px solid #000000 !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
     }
