@@ -7,6 +7,7 @@
 namespace App\Http\Controllers\Penjual;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\KatalogController; // <-- FIX: Import KatalogController di sini
 use App\Models\Produk;
 use App\Models\Kategori;
 use App\Models\Notifikasi;
@@ -78,6 +79,7 @@ class ProdukController extends Controller
      */
     public function show($id_produk)
     {
+        // Alternatif jika tanpa use di atas: return app(\App\Http\Controllers\KatalogController::class)->show($id_produk);
         return app(KatalogController::class)->show($id_produk);
     }
 
