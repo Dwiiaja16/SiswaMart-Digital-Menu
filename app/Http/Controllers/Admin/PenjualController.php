@@ -34,7 +34,6 @@ class PenjualController extends Controller
      */
     public function index()
     {
-        // Ambil data seluruh penjual beserta data profil dan produknya (10 per halaman)
         $sellers = User::where('role', 'penjual')
             ->with(['dataPenjual', 'produk'])
             ->latest()
@@ -60,7 +59,7 @@ class PenjualController extends Controller
         $validated = $request->validate([
             'username'       => 'required|string|max:50|unique:users,username',
             'password'       => 'required|string|min:6',
-            'email'          => 'required|email|max:255|unique:data_penjual,email', // Email Penjual Wajib
+            'email'          => 'required|email|max:255|unique:data_penjual,email',
             'nomor_whatsapp' => 'required|string|max:20',
             'nama_lengkap'   => 'required|string|max:255',
             'nama_kelas'     => 'required|string|max:50',
@@ -81,7 +80,7 @@ class PenjualController extends Controller
 
             $user = User::create([
                 'username' => $cleanUsername,
-                'email'    => $validated['email'], // Simpan email ke tabel users juga jika ada kolomnya
+                'email'    => $validated['email'],
                 'password' => Hash::make($validated['password']),
                 'role'     => 'penjual',
             ]);

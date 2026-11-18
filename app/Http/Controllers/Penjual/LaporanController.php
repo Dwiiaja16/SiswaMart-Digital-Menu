@@ -36,19 +36,16 @@ class LaporanController extends Controller
             return redirect()->route('login');
         }
 
-        // Hanya mengambil ID produk yang sudah disetujui admin untuk kueri ulasan
         $productIds = Produk::where('username', $user->username)
             ->where('status_moderasi', 'disetujui')
             ->pluck('id_produk');
 
-        // Mengambil daftar produk penjual yang hanya berstatus disetujui
         $products = Produk::where('username', $user->username)
             ->where('status_moderasi', 'disetujui')
             ->with(['kategori', 'ulasan'])
             ->latest()
             ->get();
 
-        // Mengambil Top 5 Produk yang disetujui, diurutkan berdasarkan views terbanyak
         $topViewedProducts = Produk::where('username', $user->username)
             ->where('status_moderasi', 'disetujui')
             ->with(['kategori', 'ulasan'])
@@ -66,18 +63,15 @@ class LaporanController extends Controller
                 'avg_rating'  => $p->ulasan->avg('rating') ? round($p->ulasan->avg('rating'), 1) : null,
             ]);
 
-        // Menghitung total views akumulasi HANYA dari produk yang disetujui
         $totalViewsAccumulated = Produk::where('username', $user->username)
             ->where('status_moderasi', 'disetujui')
             ->sum('views');
 
-        // Menghitung produk baru yang disetujui dalam 7 hari terakhir
         $newProductsLast7Days = Produk::where('username', $user->username)
             ->where('status_moderasi', 'disetujui')
             ->where('created_at', '>=', now()->subDays(7))
             ->count();
 
-        // Ulasan 7 hari terakhir hanya dari produk yang disetujui
         $totalCommentsLast7Days = Ulasan::whereIn('id_produk', $productIds)
             ->where('created_at', '>=', now()->subDays(7))
             ->count();

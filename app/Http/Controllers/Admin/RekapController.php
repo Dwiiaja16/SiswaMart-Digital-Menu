@@ -17,6 +17,7 @@ class RekapController extends Controller
     public function index()
     {
         $sevenDaysAgo = Carbon::now()->subDays(7);
+        $fourteenDaysAgo = Carbon::now()->subDays(14);
 
         // Pengecekan aman apakah model Produk menggunakan trait SoftDeletes
         $hasSoftDeletes = in_array(\Illuminate\Database\Eloquent\SoftDeletes::class, class_uses_recursive(Produk::class));
@@ -25,23 +26,23 @@ class RekapController extends Controller
             return User::where('role', 'penjual')
                 ->with(['dataPenjual', 'produk'])
                 ->withCount([
-                // HANYA menghitung produk aktif yang SUDAH DI-ACC ADMIN (Disetujui)
-                'produk as total_produk_count' => function ($q) {
-                    $q->where('status_moderasi', 'disetujui');
-                },
-                // HANYA menghitung produk baru 7 hari terakhir YANG SUDAH DI-ACC ADMIN
-                'produk as produk_baru_count' => function ($q) use ($sevenDaysAgo) {
-                    $q->where('created_at', '>=', $sevenDaysAgo)
-                      ->where('status_moderasi', 'disetujui');
-                },
-                // Menghitung produk yang dihapus 7 hari terakhir
-                'produk as produk_dihapus_count' => function ($q) use ($sevenDaysAgo, $hasSoftDeletes) {
-                    if ($hasSoftDeletes) {
-                        $q->onlyTrashed()->where('deleted_at', '>=', $sevenDaysAgo);
-                    } else {
-                        $q->whereRaw('1 = 0');
-                    }
-                },
+                    // HANYA menghitung produk aktif yang SUDAH DI-ACC ADMIN (Disetujui)
+                    'produk as total_produk_count' => function ($q) {
+                        $q->where('status_moderasi', 'disetujui');
+                    },
+                    // HANYA menghitung produk baru 7 hari terakhir YANG SUDAH DI-ACC ADMIN
+                    'produk as produk_baru_count' => function ($q) use ($sevenDaysAgo) {
+                        $q->where('created_at', '>=', $sevenDaysAgo)
+                          ->where('status_moderasi', 'disetujui');
+                    },
+                    // Menghitung produk yang dihapus 7 hari terakhir
+                    'produk as produk_dihapus_count' => function ($q) use ($sevenDaysAgo, $hasSoftDeletes) {
+                        if ($hasSoftDeletes) {
+                            $q->onlyTrashed()->where('deleted_at', '>=', $sevenDaysAgo);
+                        } else {
+                            $q->whereRaw('1 = 0');
+                        }
+                    },
                 ]);
         };
 
@@ -54,7 +55,7 @@ class RekapController extends Controller
             ->groupBy('produk.username')
             ->pluck('total_reviews_count', 'produk.username');
 
-        $mapSeller = function ($seller) use ($reviewCounts) {
+        $mapSeller = function ($seller) use ($reviewCounts, $fourteenDaysAgo) {
             $penjual = $seller->dataPenjual;
             $totalProduk = (int) ($seller->total_produk_count ?? 0);
             $produkBaru = (int) ($seller->produk_baru_count ?? 0);
@@ -65,19 +66,30 @@ class RekapController extends Controller
             $isSuspended = ($statusToko === 'suspended');
             $isTutup = ($statusToko === 'tutup');
 
-            // Logika Badge Keaktifan
-            $activityBadge = 'active';
+            // Cek aktivitas terakhir (dari dataPenjual atau update/unggah produk paling baru)
+            $lastActiveDate = $penjual?->updated_at ?? $seller->updated_at;
+            $latestProductDate = $seller->produk->max('updated_at');
 
+            if ($latestProductDate && Carbon::parse($latestProductDate)->gt(Carbon::parse($lastActiveDate))) {
+                $lastActiveDate = $latestProductDate;
+            }
+
+            // Status aktif jika ada aktivitas dalam 14 hari terakhir
+            $isAktif14Hari = $lastActiveDate ? Carbon::parse($lastActiveDate)->gte($fourteenDaysAgo) : false;
+
+            // Logika Badge Keaktifan
             if ($isSuspended) {
                 $activityBadge = 'suspended';
-            } elseif ($totalProduk === 0) {
-                $activityBadge = 'new';
-            } elseif ($produkBaru > 0) {
-                $activityBadge = 'active';
             } elseif ($isTutup) {
                 $activityBadge = 'closed';
-            } else {
+            } elseif ($totalProduk === 0) {
+                $activityBadge = 'new';
+            } elseif (!$isAktif14Hari) {
+                // Toko BUKA tetapi tidak ada aktivitas lebih dari 14 hari
                 $activityBadge = 'passive';
+            } else {
+                // Toko BUKA dan aktif dalam 14 hari terakhir
+                $activityBadge = 'active';
             }
 
             return [

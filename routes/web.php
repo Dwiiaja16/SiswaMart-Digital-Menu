@@ -44,6 +44,35 @@ Route::get('/auth/google', [GoogleController::class, 'redirectToGoogle'])->name(
 Route::get('/auth/google/login', [GoogleController::class, 'redirectToGoogle'])->name('google.login');
 Route::get('/auth/google/callback', [GoogleController::class, 'handleGoogleCallback'])->name('auth.google.callback');
 
+// Sitemap XML (Publik & SEO)
+Route::get('/sitemap.xml', function () {
+    $xml = '<?xml version="1.0" encoding="UTF-8"?>';
+    $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
+    $xml .= '<url><loc>https://siswamart.my.id/</loc><priority>1.0</priority></url>';
+    $xml .= '<url><loc>https://siswamart.my.id/kategori</loc><priority>0.8</priority></url>';
+    $xml .= '<url><loc>https://siswamart.my.id/cara-memesan</loc><priority>0.8</priority></url>';
+    $xml .= '<url><loc>https://siswamart.my.id/tentang-kami</loc><priority>0.8</priority></url>';
+    $xml .= '<url><loc>https://siswamart.my.id/login</loc><priority>0.7</priority></url>';
+    $xml .= '</urlset>';
+
+    return response($xml, 200)->header('Content-Type', 'text/xml; charset=UTF-8');
+});
+
+// Webhook Auto-Deploy GitHub
+Route::post('/deploy-siswamart-secret-11', function () {
+    $output = shell_exec('cd ' . base_path() . ' && git pull origin main 2>&1');
+
+    \Illuminate\Support\Facades\Artisan::call('route:clear');
+    \Illuminate\Support\Facades\Artisan::call('config:clear');
+    \Illuminate\Support\Facades\Artisan::call('cache:clear');
+
+    return response()->json([
+        'status' => 'success',
+        'message' => 'Auto deploy berhasil!',
+        'output' => $output
+    ]);
+});
+
 
 /*
 |--------------------------------------------------------------------------
@@ -61,7 +90,6 @@ Route::middleware(['auth'])->group(function () {
         }
 
         if ($user->role === 'penjual') {
-            // HANYA tendang jika akun toko BENAR-BENAR di-suspend oleh Admin
             if ($user->dataPenjual?->status_toko === 'suspended') {
                 Auth::guard('web')->logout();
                 request()->session()->invalidate();
@@ -86,7 +114,6 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/dashboard', function () {
             $user = Auth::user();
 
-            // Proteksi Lanjutan: Hanya tendang jika status 'suspended' oleh Admin
             if ($user->dataPenjual?->status_toko === 'suspended') {
                 Auth::guard('web')->logout();
                 request()->session()->invalidate();
@@ -133,7 +160,6 @@ Route::middleware(['auth'])->group(function () {
                 ]
             );
 
-            // Cegah penjual mengubah status jika tokonya di-suspend oleh admin
             if ($seller->status_toko === 'suspended') {
                 return redirect()->back()->with('error', 'Toko Anda sedang ditangguhkan oleh Admin.');
             }
@@ -191,8 +217,9 @@ Route::middleware(['auth'])->group(function () {
         Route::patch('/products/{product}/reject', [ModerasiProdukController::class, 'reject'])->name('products.reject');
         Route::delete('/products/{product}', [ModerasiProdukController::class, 'destroy'])->name('products.destroy');
 
-        // Rekapitulasi Penjual & Toggle Suspend
+        // Rekapitulasi & Detail Performa Toko (Disatukan Tanpa Duplikasi)
         Route::get('/recap', [RekapController::class, 'index'])->name('recap');
+        Route::get('/recap/{username}', [RekapController::class, 'show'])->name('recap.show');
         Route::patch('/recap/{username}/toggle-suspend', [RekapController::class, 'toggleSuspend'])->name('recap.toggle-suspend');
 
         // Notifikasi Admin
@@ -203,11 +230,22 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/moderasi-ulasan', [UlasanController::class, 'moderationIndex'])->name('reviews.moderation');
         Route::delete('/moderasi-ulasan/{review}', [UlasanController::class, 'destroy'])->name('reviews.destroy');
 
-        // Rekapitulasi Penjual & Toggle Suspend
-        Route::get('/recap', [RekapController::class, 'index'])->name('recap');
-        // ROUTE BARU: Laporan Detail Penjual (Lifetime)
-        Route::get('/recap/{username}', [RekapController::class, 'show'])->name('recap.show');
-        Route::patch('/recap/{username}/toggle-suspend', [RekapController::class, 'toggleSuspend'])->name('recap.toggle-suspend');
+        // Utilitas Khusus Admin (Dipindahkan ke Dalam Auth Admin Agar Aman)
+        Route::get('/clear-cache-now', function () {
+            \Illuminate\Support\Facades\Artisan::call('route:clear');
+            \Illuminate\Support\Facades\Artisan::call('config:clear');
+            \Illuminate\Support\Facades\Artisan::call('cache:clear');
+            return 'Cache Route & Config Server Berhasil Dibersihkan!';
+        })->name('utils.clear-cache');
+
+        Route::get('/run-migration-now', function () {
+            try {
+                \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+                return 'Sukses! Migrasi database berhasil dijalankan di hosting.';
+            } catch (\Exception $e) {
+                return 'Gagal / Terjadi Error: ' . $e->getMessage();
+            }
+        })->name('utils.run-migration');
     });
 
     // Profil User & OAuth Disconnect
@@ -220,57 +258,9 @@ Route::middleware(['auth'])->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| 3. UTILITAS & SEO
+| 4. AUTHENTICATION ROUTES (Password Reset & Guest)
 |--------------------------------------------------------------------------
 */
-
-// Clear Cache Server
-Route::get('/clear-cache-now', function () {
-    \Illuminate\Support\Facades\Artisan::call('route:clear');
-    \Illuminate\Support\Facades\Artisan::call('config:clear');
-    \Illuminate\Support\Facades\Artisan::call('cache:clear');
-    return 'Cache Route & Config Server Berhasil Dibersihkan!';
-});
-
-// Rute Darurat untuk Menjalankan Migrasi di Hosting
-Route::get('/run-migration-now', function () {
-    try {
-        \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
-        return 'Sukses! Migrasi database berhasil dijalankan di hosting.';
-    } catch (\Exception $e) {
-        return 'Gagal / Terjadi Error: ' . $e->getMessage();
-    }
-});
-
-// Sitemap XML
-Route::get('/sitemap.xml', function () {
-    $xml = '<?xml version="1.0" encoding="UTF-8"?>';
-    $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
-    $xml .= '<url><loc>https://siswamart.my.id/</loc><priority>1.0</priority></url>';
-    $xml .= '<url><loc>https://siswamart.my.id/kategori</loc><priority>0.8</priority></url>';
-    $xml .= '<url><loc>https://siswamart.my.id/cara-memesan</loc><priority>0.8</priority></url>';
-    $xml .= '<url><loc>https://siswamart.my.id/tentang-kami</loc><priority>0.8</priority></url>';
-    $xml .= '<url><loc>https://siswamart.my.id/login</loc><priority>0.7</priority></url>';
-    $xml .= '</urlset>';
-
-    return response($xml, 200)->header('Content-Type', 'text/xml; charset=UTF-8');
-});
-
-// Webhook Auto-Deploy GitHub
-Route::post('/deploy-siswamart-secret-11', function () {
-    $output = shell_exec('cd ' . base_path() . ' && git pull origin main 2>&1');
-
-    \Illuminate\Support\Facades\Artisan::call('route:clear');
-    \Illuminate\Support\Facades\Artisan::call('config:clear');
-    \Illuminate\Support\Facades\Artisan::call('cache:clear');
-
-    return response()->json([
-        'status' => 'success',
-        'message' => 'Auto deploy berhasil!',
-        'output' => $output
-    ]);
-});
-
 require __DIR__ . '/auth.php';
 
 Route::middleware('guest')->group(function () {
