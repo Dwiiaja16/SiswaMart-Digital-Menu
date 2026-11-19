@@ -33,3 +33,5 @@ Thumbs.db
 
 # IDE / Zip Temporary
 *.zip
+
+/siswamart_mobile/
