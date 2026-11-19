@@ -10,13 +10,27 @@ use Illuminate\Http\Request;
 
 class PublicCatalogController extends Controller
 {
+    private function formatFullUrl(?string $path): ?string
+    {
+        if (!$path) {
+            return null;
+        }
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://') || str_starts_with($path, 'data:image')) {
+            return $path;
+        }
+        return url($path);
+    }
+
     // 1. Ambil daftar kategori beserta jumlah produk aktif
     public function categories()
     {
         $categories = Kategori::withCount(['produk' => function ($q) {
             $q->where('status_moderasi', 'disetujui')
               ->whereNull('deleted_at')
-              ->whereHas('penjual', fn($p) => $p->where('status_toko', '!=', 'suspended'));
+              ->whereHas('dataPenjual', function ($p) {
+                  $p->where('status_toko', '!=', 'suspended')
+                    ->orWhereNull('status_toko');
+              });
         }])->get();
 
         return response()->json(['status' => 'success', 'data' => $categories]);
@@ -25,11 +39,14 @@ class PublicCatalogController extends Controller
     // 2. Ambil daftar produk (support search, filter kategori, harga, status stok, & sorting)
     public function products(Request $request)
     {
-        $query = Produk::with(['kategori', 'penjual'])
+        $query = Produk::with(['kategori', 'dataPenjual'])
             ->withAvg('ulasan', 'rating')
             ->where('status_moderasi', 'disetujui')
             ->whereNull('deleted_at')
-            ->whereHas('penjual', fn($q) => $q->where('status_toko', '!=', 'suspended'));
+            ->whereHas('dataPenjual', function ($q) {
+                $q->where('status_toko', '!=', 'suspended')
+                  ->orWhereNull('status_toko');
+            });
 
         if ($request->filled('search')) {
             $query->where('nama_produk', 'like', '%' . $request->search . '%');
@@ -64,10 +81,10 @@ class PublicCatalogController extends Controller
                 'status_stok'     => $item->status_stok,
                 'views'           => (int) $item->views,
                 'rating_avg'      => round((float) ($item->ulasan_avg_rating ?? 0), 1),
-                'foto_url'        => asset('storage/' . $item->foto_produk),
+                'foto_url'        => $this->formatFullUrl($item->foto_produk_url),
                 'kategori'        => $item->kategori->nama_kategori ?? '-',
-                'nama_toko'       => $item->penjual->nama_toko ?? '-',
-                'status_toko'     => $item->penjual->status_toko ?? 'buka',
+                'nama_toko'       => $item->dataPenjual->nama_toko ?? '-',
+                'status_toko'     => $item->dataPenjual->status_toko ?? 'buka',
             ];
         });
 
@@ -77,7 +94,7 @@ class PublicCatalogController extends Controller
     // 3. Detail Produk + Auto Increment Views + Data Nomor WA Penjual
     public function show($id)
     {
-        $produk = Produk::with(['kategori', 'penjual', 'ulasan' => fn($q) => $q->latest('id_ulasan')])
+        $produk = Produk::with(['kategori', 'dataPenjual', 'ulasan' => fn($q) => $q->latest('id_ulasan')])
             ->where('status_moderasi', 'disetujui')
             ->whereNull('deleted_at')
             ->findOrFail($id);
@@ -86,10 +103,15 @@ class PublicCatalogController extends Controller
         $produk->increment('views');
 
         // Normalisasi nomor WA (08xxx -> 628xxx)
-        $rawWa = preg_replace('/[^0-9]/', '', $produk->penjual->nomor_whatsapp ?? '');
+        $rawWa = preg_replace('/[^0-9]/', '', $produk->dataPenjual->nomor_whatsapp ?? '');
         if (str_starts_with($rawWa, '0')) {
             $rawWa = '62' . substr($rawWa, 1);
         }
+
+        $semuaFoto = array_map(
+            fn($url) => $this->formatFullUrl($url),
+            $produk->semua_foto_url
+        );
 
         return response()->json([
             'status' => 'success',
@@ -100,12 +122,13 @@ class PublicCatalogController extends Controller
                 'harga'           => (int) $produk->harga,
                 'status_stok'     => $produk->status_stok,
                 'views'           => (int) $produk->views,
-                'foto_url'        => asset('storage/' . $produk->foto_produk),
+                'foto_url'        => $this->formatFullUrl($produk->foto_produk_url),
+                'semua_foto_url'  => $semuaFoto,
                 'kategori'        => $produk->kategori->nama_kategori ?? '-',
                 'penjual'         => [
-                    'nama_toko'      => $produk->penjual->nama_toko ?? '-',
+                    'nama_toko'      => $produk->dataPenjual->nama_toko ?? '-',
                     'nomor_whatsapp' => $rawWa,
-                    'status_toko'    => $produk->penjual->status_toko ?? 'buka',
+                    'status_toko'    => $produk->dataPenjual->status_toko ?? 'buka',
                 ],
                 'rating_avg'      => round((float) $produk->ulasan->avg('rating'), 1),
                 'total_ulasan'    => $produk->ulasan->count(),
