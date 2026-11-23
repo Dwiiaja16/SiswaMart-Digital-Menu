@@ -28,6 +28,25 @@ class DataPenjual extends Model
         'status_toko',
     ];
 
+    protected $appends = ['foto_penjual_url'];
+
+    /**
+     * Accessor: Format URL Foto Toko / Penjual
+     */
+    public function getFotoPenjualUrlAttribute(): ?string
+    {
+        if (empty($this->foto_penjual)) {
+            return null;
+        }
+
+        $val = trim($this->foto_penjual);
+        if (str_starts_with($val, 'http://') || str_starts_with($val, 'https://') || str_starts_with($val, 'data:image')) {
+            return $val;
+        }
+
+        return url('/' . ltrim($val, '/'));
+    }
+
     /**
      * Relasi ke User
      */
