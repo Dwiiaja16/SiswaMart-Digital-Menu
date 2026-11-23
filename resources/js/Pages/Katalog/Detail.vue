@@ -1,6 +1,10 @@
 <script setup>
 import { computed, ref, watch } from "vue";
 import { Head, Link, router, useForm, usePage } from "@inertiajs/vue3";
+import AppFooter from "../../Components/AppFooter.vue";
+import BackToTop from "../../Components/BackToTop.vue";
+import FloatingWhatsApp from "../../Components/FloatingWhatsApp.vue";
+import BackButton from "../../Components/BackButton.vue";
 
 const props = defineProps({
     product: Object,
@@ -324,7 +328,7 @@ const rejectProduct = () => {
 <template>
     <Head title="SiswaMart Digital Menu" />
 
-    <div class="detail-page min-h-screen text-gray-900 font-sans pb-24 pt-20 selection:bg-orange-500 selection:text-white">
+    <div class="detail-page min-h-screen text-gray-900 font-sans pt-20 flex flex-col justify-between selection:bg-orange-500 selection:text-white">
         <div class="ambient-grid" aria-hidden="true"></div>
         <div class="ambient-orb orb-one" aria-hidden="true"></div>
         <div class="ambient-orb orb-two" aria-hidden="true"></div>
@@ -358,7 +362,8 @@ const rejectProduct = () => {
             </div>
         </header>
 
-        <main class="max-w-6xl mx-auto px-4 sm:px-6 pt-6 relative z-10">
+        <main class="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 pt-6 pb-12 sm:pb-16 relative z-10">
+            <BackButton fallback-url="/" class="mb-4 sm:mb-5" />
             <!-- Hero Card Main -->
             <section class="hero-card reveal">
                 <!-- Panel Image Galeri Slider -->
@@ -934,6 +939,9 @@ const rejectProduct = () => {
                 </div>
             </section>
         </main>
+        <AppFooter />
+        <BackToTop />
+        <FloatingWhatsApp />
     </div>
 </template>
 

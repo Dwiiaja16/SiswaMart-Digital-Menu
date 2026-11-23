@@ -1,6 +1,9 @@
 <script setup>
 import { Head, Link, router } from "@inertiajs/vue3";
 import { ref, computed, watch } from "vue";
+import AppFooter from "../../Components/AppFooter.vue";
+import BackToTop from "../../Components/BackToTop.vue";
+import FloatingWhatsApp from "../../Components/FloatingWhatsApp.vue";
 
 const props = defineProps({
     products: {
@@ -250,7 +253,7 @@ const getProductThumbnail = (product) => {
     <Head title="Kategori & Setting Harga - SiswaMart" />
 
     <div
-        class="min-h-screen bg-[#F4F0E6] text-[#362415] font-sans selection:bg-[#F25C05] selection:text-[#F4F0E6] pb-20 sm:pb-24 overflow-x-clip relative"
+        class="min-h-screen bg-[#F4F0E6] text-[#362415] font-sans selection:bg-[#F25C05] selection:text-[#F4F0E6] flex flex-col justify-between overflow-x-clip relative"
     >
         <!-- BACKGROUND BLOBS OATSIDE -->
         <div class="fixed inset-0 z-0 pointer-events-none opacity-40 sm:opacity-50 overflow-hidden">
@@ -364,7 +367,7 @@ const getProductThumbnail = (product) => {
         </header>
 
         <!-- MAIN CONTENT CONTAINER -->
-        <main class="relative z-10 max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 pt-4 sm:pt-10 space-y-6 sm:space-y-8">
+        <main class="flex-1 w-full relative z-10 max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 pt-4 sm:pt-10 pb-12 sm:pb-16 space-y-6 sm:space-y-8">
             <!-- HERO HEADER BANNER -->
             <section class="bg-[#FCFAF5] border-2 border-[#362415] rounded-2xl sm:rounded-[36px] p-5 sm:p-10 shadow-[3px_3px_0px_#362415] sm:shadow-[6px_6px_0px_#362415] relative overflow-hidden">
                 <div class="max-w-3xl space-y-3 sm:space-y-4">
@@ -862,15 +865,10 @@ const getProductThumbnail = (product) => {
                     </div>
                 </section>
             </div>
-
-            <!-- FOOTER -->
-            <footer class="text-center pt-6 sm:pt-8 pb-4 text-[11px] sm:text-xs font-bold text-[#947d6b] space-y-1">
-                <p>SISWAMART • SMKN 11 BANDUNG</p>
-                <p class="text-[10px] sm:text-[11px] font-semibold text-[#947d6b]/80">
-                    Platform Digital Wirausaha Siswa Kreatif & Berdaya.
-                </p>
-            </footer>
         </main>
+        <AppFooter />
+        <BackToTop />
+        <FloatingWhatsApp />
     </div>
 </template>
 

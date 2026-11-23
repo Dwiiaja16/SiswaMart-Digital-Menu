@@ -41,4 +41,8 @@ return [
     'redirect' => env('GOOGLE_REDIRECT_URI'),
     ],
 
+    'siswamart' => [
+        'cs_whatsapp' => env('SISWAMART_CS_WHATSAPP', '6281234567890'),
+    ],
+
 ];

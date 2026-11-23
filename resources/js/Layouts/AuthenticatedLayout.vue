@@ -2,6 +2,9 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
 import axios from 'axios';
+import AppFooter from '../Components/AppFooter.vue';
+import BackToTop from '../Components/BackToTop.vue';
+import FloatingWhatsApp from '../Components/FloatingWhatsApp.vue';
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user || {});
@@ -291,7 +294,7 @@ const isRouteActive = (routeName) => {
 
 <template>
     <div
-        class="min-h-screen bg-stone-50 text-gray-900 font-sans selection:bg-[#F25C05] selection:text-white flex flex-col w-full relative"
+        class="min-h-screen bg-stone-50 text-gray-900 font-sans selection:bg-[#F25C05] selection:text-white flex flex-col justify-between w-full relative"
     >
 
         <!-- NAVBAR HEADER UTAMA (LOCKED STICKY TOPBAR) -->
@@ -809,6 +812,10 @@ const isRouteActive = (routeName) => {
                 </div>
             </main>
         </div>
+
+        <AppFooter />
+        <BackToTop />
+        <FloatingWhatsApp v-if="user?.role === 'penjual'" />
 
         <!-- MODAL LOGOUT -->
         <div

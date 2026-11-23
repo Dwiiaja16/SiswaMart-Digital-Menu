@@ -37,6 +37,9 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user() ? $request->user()->load('dataPenjual') : null,
             ],
+            'app' => [
+                'cs_whatsapp' => config('services.siswamart.cs_whatsapp'),
+            ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error'   => fn () => $request->session()->get('error'),

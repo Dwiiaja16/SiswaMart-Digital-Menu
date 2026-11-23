@@ -1,6 +1,9 @@
 <script setup>
 import { Head, Link, router } from "@inertiajs/vue3";
 import { ref, onMounted, onUnmounted, watch, computed, nextTick } from "vue";
+import AppFooter from "../Components/AppFooter.vue";
+import BackToTop from "../Components/BackToTop.vue";
+import FloatingWhatsApp from "../Components/FloatingWhatsApp.vue";
 
 const props = defineProps({
     products: Array,
@@ -205,7 +208,7 @@ onUnmounted(() => {
 <template>
     <Head title="Katalog Digital SiswaMart - SMKN 11 Bandung" />
 
-    <div class="min-h-screen bg-[#F4F0E6] text-[#362415] font-sans selection:bg-[#F25C05] selection:text-[#F4F0E6] pb-20 sm:pb-24 overflow-x-clip relative">
+    <div class="min-h-screen bg-[#F4F0E6] text-[#362415] font-sans selection:bg-[#F25C05] selection:text-[#F4F0E6] flex flex-col justify-between overflow-x-clip relative">
         
         <!-- BACKGROUND BLOBS OATSIDE STYLE -->
         <div class="fixed inset-0 z-0 pointer-events-none opacity-40 sm:opacity-60 overflow-hidden">
@@ -471,7 +474,7 @@ onUnmounted(() => {
         </section>
 
         <!-- MAIN FEED CONTENT CONTAINER -->
-        <main class="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 space-y-10 sm:space-y-16 relative z-10">
+        <main class="flex-1 w-full max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 space-y-10 sm:space-y-16 pb-12 sm:pb-16 relative z-10">
             
             <!-- SECTION 1: KATEGORI TERPOPULER -->
             <section class="space-y-4 sm:space-y-6">
@@ -795,15 +798,10 @@ onUnmounted(() => {
                     </div>
                 </div>
             </section>
-
-            <!-- FOOTER -->
-            <footer class="text-center pt-6 sm:pt-8 pb-4 text-[11px] sm:text-xs font-bold text-[#947d6b] space-y-1">
-                <p>SISWAMART • SMKN 11 BANDUNG</p>
-                <p class="text-[10px] sm:text-[11px] font-semibold text-[#947d6b]/80">
-                    Platform Digital Wirausaha Siswa Kreatif & Berdaya.
-                </p>
-            </footer>
         </main>
+        <AppFooter />
+        <BackToTop />
+        <FloatingWhatsApp />
     </div>
 </template>
 
