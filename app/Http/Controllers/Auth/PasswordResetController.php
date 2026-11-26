@@ -7,8 +7,10 @@ use App\Mail\ResetPasswordMail;
 use App\Models\DataPenjual;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -79,14 +81,32 @@ class PasswordResetController extends Controller
                 ]
             );
 
-            // 6. Kirim email via Mailable
+            // 6. Kirim email via Mailable secara sinkron
             Mail::to($emailTarget)->send(new ResetPasswordMail($user, $token, $emailTarget));
 
-            return redirect()->back()->with('status', 'Link reset password berhasil dikirim ke ' . $emailTarget);
+            Log::info("Email reset password berhasil dikirim ke: {$emailTarget} (mailer: " . config('mail.default') . ")");
+
+            $statusMessage = 'Link reset password berhasil dikirim ke ' . $emailTarget . '.';
+
+            return redirect()->back()->with('status', $statusMessage);
 
         } catch (Throwable $e) {
+            Log::error('Gagal mengirim link reset password: ' . $e->getMessage(), [
+                'input' => $request->username_or_email ?? null,
+                'email' => $emailTarget ?? null,
+                'file'  => $e->getFile() . ':' . $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            $friendlyMessage = 'Gagal mengirim email reset password. ';
+            if (app()->environment('local')) {
+                $friendlyMessage .= 'Detail: ' . $e->getMessage();
+            } else {
+                $friendlyMessage .= 'Pastikan konfigurasi mail server aktif atau hubungi pengelola SiswaMart.';
+            }
+
             return redirect()->back()->withErrors([
-                'username_or_email' => 'Sistem Error: ' . $e->getMessage(),
+                'username_or_email' => $friendlyMessage,
             ]);
         }
     }
@@ -119,6 +139,15 @@ class PasswordResetController extends Controller
             if (!$record || !Hash::check($request->token, $record->token)) {
                 return redirect()->back()->withErrors([
                     'email' => 'Token reset password tidak valid atau sudah kadaluwarsa.',
+                ]);
+            }
+
+            // Cek masa berlaku token (default 60 menit dari config auth)
+            $expireMinutes = (int) config('auth.passwords.users.expire', 60);
+            if (Carbon::parse($record->created_at)->addMinutes($expireMinutes)->isPast()) {
+                DB::table('password_reset_tokens')->where('email', $request->email)->delete();
+                return redirect()->back()->withErrors([
+                    'email' => 'Token reset password telah kadaluwarsa (lebih dari ' . $expireMinutes . ' menit). Silakan ajukan ulang link reset password.',
                 ]);
             }
 
